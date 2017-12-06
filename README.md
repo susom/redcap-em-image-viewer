@@ -1,2 +1,16 @@
 # redcap-em-image-viewer
-Display images from uploaded files in your survey or webpage
+This external module permits you to augment a file_upload field and allow a preview/display of files that are attached to these fields.
+
+#### Features
+ * Upload fields you want to enable preview on should be specified in the External Module configuration page
+ * Only image files will be previewed
+ * Image will appear at normal size unless larger than the cell in which case it will be shrunk.  Use the left-vertical format for larger images.
+ 
+ 
+#### Example
+![Example Survey](docs/example.png)
+ 
+ 
+*Last tested on v7.6.9*
+ 
+ 

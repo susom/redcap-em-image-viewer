@@ -34,17 +34,30 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
 
 
     function hook_every_page_top($project_id = null) {
-        if (PAGE != "Design/online_designer.php") return;
-        Util::log("On " . PAGE);
-        $active_fields = $this->getProjectSetting('fields');
-
-        ?>
+        // When on the online designer, let's highlight the fields tagged for this em
+        if (PAGE == "Design/online_designer.php") {
+            $active_fields = $this->getProjectSetting('fields');
+            Util::log("On " . PAGE . " with:", $active_fields);
+            ?>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
             <script>
                 IVEM.fields = <?php print json_encode($active_fields) ?>;
                 IVEM.interval = window.setInterval(IVEM.highlightFields, 1000);
             </script>
-        <?php
+            <?php
+        }
+        if (PAGE == "ProjectSetup/index.php") {
+            // When on the project setup page, let's highlight that this em is active
+            $active_fields = $this->getProjectSetting('fields');
+            ?>
+            <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
+            <style>.em-label { padding: 5px; }</style>
+            <script>
+                IVEM.fields = <?php print json_encode($active_fields) ?>;
+                IVEM.projectSetup();
+            </script>
+            <?php
+        }
     }
 
 

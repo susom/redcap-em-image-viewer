@@ -42,7 +42,7 @@
   "project-settings": [
     {
       "key": "fields",
-      "name": "Enter the fields to activate for this module.  They must be file-upload fields.",
+      "name": "Enter the fields to activate for this module.  They must be only file-upload fields.",
       "required": false,
       "type": "field-list",
       "repeatable": true
