@@ -6,7 +6,8 @@
   "description": "Preview uploaded image files on a form/survey",
 
   "versions": [
-    { "0.2": "Working and simplified version that is almost exclusively javascript" }
+    { "0.2": "Working and simplified version that is almost exclusively javascript" },
+    { "1.0": "Initial release" }
   ],
 
   "authors": [
