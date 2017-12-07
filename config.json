@@ -7,7 +7,8 @@
 
   "versions": [
     { "0.2": "Working and simplified version that is almost exclusively javascript" },
-    { "1.0": "Initial release" }
+    { "1.0": "Initial release" },
+    { "1.1": "Added support for custom action-tag @IMAGEVIEW"}
   ],
 
   "authors": [

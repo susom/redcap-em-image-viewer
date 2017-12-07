@@ -5,7 +5,7 @@ This external module permits you to augment a file_upload field and allow a prev
  * Upload fields you want to enable preview on should be specified in the External Module configuration page
  * Only image files will be previewed
  * Image will appear at normal size unless larger than the cell in which case it will be shrunk.  Use the left-vertical format for larger images.
- * Action tags (@IMAGEVIEWER) will also trigger action to be backward compatible with Andy's old hook framework.
+ * Action tags (@IMAGEVIEW) will also trigger action to be backward compatible with Andy's old hook framework.
  
  
 #### Example
