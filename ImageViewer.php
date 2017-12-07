@@ -10,9 +10,12 @@ namespace Stanford\ImageViewer;
 if (!class_exists('Util')) include_once('classes/Util.php');
 
 use \REDCap as REDCap;
+use Stanford\Utility\ActionTagHelper;
 
 class ImageViewer extends \ExternalModules\AbstractExternalModule
 {
+    private $tag = "@IMAGEVIEW";
+
     function __construct()
     {
         parent::__construct();
@@ -33,10 +36,32 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
     }
 
 
+    function getFields() {
+        // Fields can come from either the external modules configuration or from custom action-tags
+        $config_fields = $this->getProjectSetting('fields');
+        $config_params = $this->getProjectSetting('field-params');
+
+        // Array where values are fields and keys are numerical in order
+        if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
+        $action_tag_fields = array();
+        $action_tag_params = array();
+        $action_tag_results = ActionTagHelper::getActionTags($this->tag);
+        if (isset($action_tag_results[$this->tag])) {
+            foreach ($action_tag_results[$this->tag] as $field => $param_array) {
+                $action_tag_fields[] = $field;
+                $action_tag_params[] = $param_array['params'];
+            }
+        }
+        Util::log("Config Fields", $config_fields, $config_params, "Action Tag Fields", $action_tag_fields, $action_tag_params);
+
+        return array_unique(array_merge($config_fields,$action_tag_fields));
+    }
+
+
     function hook_every_page_top($project_id = null) {
         // When on the online designer, let's highlight the fields tagged for this em
         if (PAGE == "Design/online_designer.php") {
-            $active_fields = $this->getProjectSetting('fields');
+            $active_fields = $this->getFields();
             Util::log("On " . PAGE . " with:", $active_fields);
             ?>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
@@ -48,7 +73,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         }
         if (PAGE == "ProjectSetup/index.php") {
             // When on the project setup page, let's highlight that this em is active
-            $active_fields = $this->getProjectSetting('fields');
+            $active_fields = $this->getFields();
             ?>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
             <style>.em-label { padding: 5px; }</style>
@@ -62,7 +87,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
 
 
     function renderImageView($instrument) {
-        $active_fields = $this->getProjectSetting('fields');
+        $active_fields = $this->getFields();
 
         // Check that active fields are present on the current instrument
         $instrument_fields = REDCap::getFieldNames($instrument);

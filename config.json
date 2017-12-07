@@ -42,11 +42,25 @@
 
   "project-settings": [
     {
-      "key": "fields",
-      "name": "Enter the fields to activate for this module.  They must be only file-upload fields.",
+      "key": "active-fields",
+      "name": "Select file-upload fields to active ImageViewer:",
       "required": false,
-      "type": "field-list",
-      "repeatable": true
+      "type": "sub_settings",
+      "repeatable": true,
+      "sub_settings": [
+        {
+          "key": "field",
+          "name": "<b>Upload Field</b><br>This field should be an upload field only",
+          "required": true,
+          "type": "field-list"
+        },
+        {
+          "key": "field-params",
+          "name": "Optional parameters (not used)",
+          "required": false,
+          "type": "text"
+        }
+      ]
     }
   ]
 }
