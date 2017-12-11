@@ -8,7 +8,8 @@
   "versions": [
     { "0.2": "Working and simplified version that is almost exclusively javascript" },
     { "1.0": "Initial release" },
-    { "1.1": "Added support for custom action-tag @IMAGEVIEW"}
+    { "1.1": "Added support for custom action-tag @IMAGEVIEW"},
+    { "1.2": "Bug fix in field specifications"}
   ],
 
   "authors": [
@@ -50,7 +51,7 @@
       "repeatable": true,
       "sub_settings": [
         {
-          "key": "field",
+          "key": "fields",
           "name": "<b>Upload Field</b><br>This field should be an upload field only",
           "required": true,
           "type": "field-list"
