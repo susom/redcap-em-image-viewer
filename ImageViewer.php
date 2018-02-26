@@ -33,13 +33,13 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
 
     // Capture normal data-entry
     function hook_data_entry_form_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($instrument,$record, $event_id);
+        self::renderPreview($instrument,$record, $event_id, $repeat_instance);
     }
 
 
     // Capture surveys
     function hook_survey_page_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($instrument, $record, $event_id);
+        self::renderPreview($instrument, $record, $event_id, $repeat_instance);
     }
 
 
@@ -229,13 +229,15 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
     }
 
 
+
     /**
      * This function passess along details about existing uploaded files so they can be previewed immediately after the page is rendered
      * @param $instrument
      * @param $record
      * @param $event_id
+     * @param $repeat_instance
      */
-    function renderPreview($instrument, $record, $event_id) {
+    function renderPreview($instrument, $record, $event_id, $repeat_instance) {
         $active_field_params = $this->getFieldParams();
 
         // Filter the configured fields to only those on the current instrument
@@ -252,10 +254,12 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         // We need to know the filetype to validate when the file has been previously uploaded...
         $q = REDCap::getData('json',$record, array_keys($fields), $event_id);
         $results = json_decode($q, true);
-        $result = $results[0];
+        $result = $results[$repeat_instance - 1];
+       
         $preview_fields = array();
         foreach ($fields as $field => $params) {
             $doc_id = $result[$field];
+            
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
                 $preview_fields[$field] = array(
