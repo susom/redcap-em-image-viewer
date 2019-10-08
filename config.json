@@ -11,7 +11,8 @@
     { "1.1": "Added support for custom action-tag @IMAGEVIEW"},
     { "1.2": "Bug fix in field specifications"},
     { "1.3": "Added support for PDF files as well in addition to improving the preview of newly uploaded files"},
-    { "1.3.1": "Made a minor fix in the ActionTag class that was calling an external class not included in the module"}
+    { "1.3.1": "Made a minor fix in the ActionTag class that was calling an external class not included in the module"},
+    { "1.3.2": "Supports embedding PDFs from descriptive fields as well"}
   ],
 
   "authors": [
@@ -55,13 +56,13 @@
       "sub_settings": [
         {
           "key": "fields",
-          "name": "<div><b>Upload Field</b><br>This field should be of the type file-upload</div>",
+          "name": "<div><b>Field with attachment</b><br>This field should be of the type file-upload or a descriptive field with an attached file</div>",
           "required": true,
           "type": "field-list"
         },
         {
           "key": "field-params",
-          "name": "<div><b>Optional</b><br>Parameters entered here can be used to customize the behavior as new features are added.  The format is valid json strings.  For example, to force the height if a preview:<code>{ \"height\": \"500px\" }</code></div>",
+          "name": "<div><b>Optional</b><br>Parameters entered here can be used to customize the behavior as new features are added.  The format is valid json strings.  For example, to force the height, try<br><code>{ \"height\": \"500px\" }</code></div><br>",
           "required": false,
           "type": "json"
         }

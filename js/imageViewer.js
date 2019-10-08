@@ -52,8 +52,8 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     var tr = $('tr[sq_id="' + field + '"]');
     if (! tr.length) return;
 
-    // Get the hyperlink element
-    var a = $('a[name="' + field + '"]', tr);
+    // Get the hyperlink element (also handle descriptive fields)
+    var a = $('a[name="' + field + '"], a.rc_attach', tr);
     if (! a.length) return;
 
     // Get the href

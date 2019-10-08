@@ -230,10 +230,12 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
 
 
     /**
-     * This function passess along details about existing uploaded files so they can be previewed immediately after the page is rendered
+     * This function passess along details about existing uploaded files so they can be previewed immediately after the
+     * page is rendered
      * @param $instrument
      * @param $record
      * @param $event_id
+     * @throws \Exception
      */
     function renderPreview($instrument, $record, $event_id) {
         $active_field_params = $this->getFieldParams();
@@ -250,23 +252,40 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         }
 
         // We need to know the filetype to validate when the file has been previously uploaded...
+        // Get type of field
+        global $Proj;
+
         $q = REDCap::getData('json',$record, array_keys($fields), $event_id);
         $results = json_decode($q, true);
         $result = $results[0];
         $preview_fields = array();
+        //Util::log($result);
         foreach ($fields as $field => $params) {
-            $doc_id = $result[$field];
+            $field_meta = $Proj->metadata[$field];
+            $field_type = $field_meta['element_type'];
+            if ($field_type == 'descriptive' && !empty($field_meta['edoc_id'])) {
+                $doc_id = $field_meta['edoc_id'];
+            } elseif ($field_type == 'file') {
+                $doc_id = $result[$field];
+            } else {
+                // invalid field type!
+            }
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
                 $preview_fields[$field] = array(
-                    'suffix' => pathinfo($doc_name, PATHINFO_EXTENSION),
-                    'params' => $params,
-                    'mime_type' => $mime_type,
-                    'doc_name' => $doc_name,
+                    'suffix'     => pathinfo($doc_name, PATHINFO_EXTENSION),
+                    'params'     => $params,
+                    'mime_type'  => $mime_type,
+                    'doc_name'   => $doc_name
+                    // 'doc_id'     => $doc_id,
+                    // 'field_type' => $field_type
                 );
             }
         }
+
         Util::log("Previewing existing files", $preview_fields);
+
+
         $this->renderJavascriptSetup();
         ?>
             <script>
