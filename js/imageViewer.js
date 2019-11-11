@@ -1,5 +1,7 @@
 var IVEM = IVEM || {};
 
+// Initialize
+IVEM.uploadComplete = IVEM.uploadComplete || [];
 
 /**
  * On the online designer page, let's highlight those fields that are configured in the module setup
@@ -53,7 +55,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     if (! tr.length) return;
 
     // Get the hyperlink element (also handle descriptive fields)
-    var a = $('a[name="' + field + '"], a.rc_attach', tr);
+    var a = $('a[name="' + field + '"], a.filedownloadlink', tr);
     if (! a.length) return;
 
     // Get the href
@@ -64,6 +66,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     var hash = $('#form :input[name=__response_hash__]').val();
     if (src.indexOf('__response_hash__') === -1 && hash) {
         src += '&__response_hash__=' + hash;
+        console.log('appending response hash');
     }
 
     // Determine the width of the parent TD
@@ -71,7 +74,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
 
 
     // var params = IVEM.field_params[field];
-    // console.log("Processing" , field, params);
+    console.log("Processing" , field, params);
 
 
     // // Check the details array
@@ -90,7 +93,11 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
         if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
         {
             // Create a new image element and shrink to fit wd_width
-            var img = $('<img/>').attr('src', src).css('max-width',td_width + 'px').css({"margin-left":"auto","margin-right":"auto","display":"block"});
+            var img = $('<img/>')
+                .addClass('IVEM')
+                .attr('src', src)
+                .css('max-width',td_width + 'px')
+                .css({"margin-left":"auto","margin-right":"auto","display":"block"});
 
             // Append custom CSS if specified for the field
             $.each(params, function(k,v) {
@@ -181,26 +188,30 @@ IVEM.setupProxy = function() {
             // After a successful upload, the download url is attached to the page - let's use it to download a preview image
             // function stopUpload(success,this_field,doc_id,doc_name,study_id,doc_size,event_id,download_page,delete_page,doc_id_hash,instance)
             // console.log(arguments);
-
             var success = arguments[0];
             var field = arguments[1];
             var doc_name = arguments[3];
             var suffix =  IVEM.getExtension(doc_name).toLowerCase();
 
             // This is file part of an active field
-            if (success && IVEM.field_params[field]) {
+            if (success && IVEM.field_params.hasOwnProperty(field)) {
                 // console.log("Upload to " + field + " with " + doc_name + " and " + suffix);
-
-                // IVEM.file_details[field] = {
-                //     "doc_name": doc_name,
-                //     "suffix": suffix,
-                //     "preview_hash": arguments[9]
-                // };
-                // console.log("About to insert " + field);
                 var params = IVEM.field_params[field];
                 var hash = arguments[9];
                 IVEM.insertPreview(field, params, suffix, hash);
             }
+
+            // Add optional updateTrigger than can be called on completion of the upload
+            if (IVEM.uploadComplete) {
+                for (let i=0; i<IVEM.uploadComplete.length; i++){
+                    let t = IVEM.uploadComplete[i];
+                    if (typeof(t) === 'function') {
+                        console.log('calling function');
+                        t();
+                    }
+                }
+            }
+
             return $result;
         };
     })();
