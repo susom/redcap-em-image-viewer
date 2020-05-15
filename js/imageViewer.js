@@ -11,10 +11,10 @@ IVEM.highlightFields = function() {
         var tr = $('tr[sq_id="' + field + '"]').not('.IVEM');
         if (tr.length) {
             var icon_div = $('.frmedit_icons', tr);
-            var label = $('<span>ImageViewer External Module</span>')
-                .addClass("label label-primary em-label pull-right")
+            var label = $('<div style="float:right;margin-right:1em;"><i class="far fa-eye"></i> <i>Image Viewer</i></div>')
+                .addClass("label label-primary em-label text-dark")
                 .attr("data-toggle", "tooltip")
-                .attr("title", "The content of this field is customized by the ImageViewer External Module" + ( params ? ":\n" + JSON.stringify(params) : ""))
+                .attr("title", "The content of this field is customized by the Image Viewer External Module" + ( params ? ":\n" + JSON.stringify(params) : ""))
                 .on('click', function() {
                     event.stopPropagation();
                 })
@@ -88,10 +88,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     // Determine the width of the parent/child TD
     var td_width = a.length ? a.closest('td').width() : td_label.width();
 
-
-    // var params = IVEM.field_params[field];
     console.log("Processing" , field, params);
-
 
     // A Preview hash indicates that the file was just uploaded and must be previewed using the every_page_before_render hook
     // We will add the ivem_preview tag to the query string to distinguish this request
@@ -102,11 +99,11 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     // Handle Valid Images
     if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
     {
-        // Create a new image element and shrink to fit wd_width
+        // Create a new image element and shrink to fit wd_width.
         var img = $('<img/>')
             .addClass('IVEM')
             .attr('src', src)
-            .css('max-width',td_width + 'px')
+            .css('max-width', td_width + 'px')
             .css({"margin-left":"auto","margin-right":"auto","display":"block"});
 
         // Append custom CSS if specified for the field
