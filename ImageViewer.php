@@ -11,12 +11,16 @@ if (!class_exists('Util')) include_once('classes/Util.php');
 
 use \REDCap as REDCap;
 use \Files as Files;
+use \Piping as Piping;
+use \Event as Event;
+
 use Stanford\Utility\ActionTagHelper;
 
 class ImageViewer extends \ExternalModules\AbstractExternalModule
 {
 
-    private $tag = "@IMAGEVIEW";
+    private $imageViewTag = "@IMAGEVIEW";
+    private $imagePipeTag = "@IMAGEPIPE";
     private $valid_image_suffixes = array('jpeg','jpg','jpe','gif','png','tif','bmp');
     private $valid_pdf_suffixes = array('pdf');
 
@@ -33,13 +37,13 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
 
     // Capture normal data-entry
     function hook_data_entry_form_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($instrument,$record, $event_id);
+        self::renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
     }
 
 
     // Capture surveys
     function hook_survey_page_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($instrument, $record, $event_id);
+        self::renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
     }
 
 
@@ -67,9 +71,9 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         // Get from action tags (and only take if not specified in external module settings)
         if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
 
-        $action_tag_results = ActionTagHelper::getActionTags($this->tag);
-        if (isset($action_tag_results[$this->tag])) {
-            foreach ($action_tag_results[$this->tag] as $field => $param_array) {
+        $action_tag_results = ActionTagHelper::getActionTags($this->imageViewTag);
+        if (isset($action_tag_results[$this->imageViewTag])) {
+            foreach ($action_tag_results[$this->imageViewTag] as $field => $param_array) {
                 if(isset($field_params[$field])) {
                     // This field is already defined in the EM settings - skip Action Tag
                     continue;
@@ -86,6 +90,27 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         }
 
         Util::log(__FUNCTION__, $field_params);
+        return $field_params;
+    }
+
+    function getPipedFields($project_id = null, $instrument = null, $record = null, $event_id = null, $instance = 1) {
+        // Get from action tags (and only take if not specified in external module settings)
+        if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
+
+        $field_params = array();
+
+        $action_tag_results = ActionTagHelper::getActionTags($this->imagePipeTag);
+        if (isset($action_tag_results[$this->imagePipeTag])) {
+            foreach ($action_tag_results[$this->imagePipeTag] as $field => $param_array) {
+                $params = $param_array["params"];
+                $params = Piping::pipeSpecialTags($params, $project_id, $record, $event_id, $instrument, null, false, null, $instrument, false, false);
+                $params = json_decode($params);
+                if (is_string($params)) {
+                    $params = json_decode("{\"field\":\"$params\"}");
+                }
+                $field_params[$field] = $params;
+            }
+        }
         return $field_params;
     }
 
@@ -111,14 +136,18 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
 
 
     function renderJavascriptSetup() {
-        $active_field_params = $this->getFieldParams();
+        $field_params = $this->getFieldParams();
+        $piped_fields = $this->getPipedFields();
+        foreach ($piped_fields as $into => $from) {
+            $field_params[$into] = $field_params[$from];
+        }
         ?>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
             <script><?php print file_get_contents($this->getModulePath() . 'js/pdfobject.min.js'); ?></script>
             <script>
                 IVEM.valid_image_suffixes = <?php print json_encode($this->valid_image_suffixes) ?>;
                 IVEM.valid_pdf_suffixes = <?php print json_encode($this->valid_pdf_suffixes) ?>;
-                IVEM.field_params = <?php print json_encode($active_field_params) ?>;
+                IVEM.field_params = <?php print json_encode($field_params) ?>;
             </script>
         <?php
     }
@@ -237,54 +266,97 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
      * @param $event_id
      * @throws \Exception
      */
-    function renderPreview($instrument, $record, $event_id) {
+    function renderPreview($project_id, $instrument, $record, $event_id, $instance, $survey_hash = null) {
         $active_field_params = $this->getFieldParams();
+        $active_piped_fields = $this->getPipedFields($project_id, $instrument, $record, $event_id, $instance);
 
         // Filter the configured fields to only those on the current instrument
         $instrument_fields = REDCap::getFieldNames($instrument);
-
         $fields = array_intersect_key($active_field_params, array_flip($instrument_fields));
+        $piped_fields = array_intersect_key($active_piped_fields, array_flip($instrument_fields));
         Util::log("Fields on $instrument", $fields);
+        Util::log("Piped fields on $instrument", $piped_fields);
 
-        if (count($fields) == 0) {
-            Util::log("There are no active fields on instrument $instrument", "DEBUG");
+        // Merge in piped fields
+        $source_fields = array_merge($fields);
+        foreach ($piped_fields as $field => $source) {
+            if (!isset($source_fields[$source->field])) {
+                $source_fields[$source->field] = @$active_field_params[$field];
+            }
+        }
+
+        if (count($fields) + count($piped_fields) == 0) {
+            Util::log("There are no active fields or piped fields on instrument $instrument", "DEBUG");
             return;
         }
+
 
         // We need to know the filetype to validate when the file has been previously uploaded...
         // Get type of field
         global $Proj;
-
-        $q = REDCap::getData('json',$record, array_keys($fields), $event_id);
-        $results = json_decode($q, true);
-        $result = $results[0];
-        $preview_fields = array();
-        //Util::log($result);
-        foreach ($fields as $field => $params) {
-            $field_meta = $Proj->metadata[$field];
+        $query_fields = array();
+        foreach (array_keys($fields) as $field) {
+            $query_fields[$field] = array(
+                "field" => $field, 
+                "event_id" => $event_id * 1, 
+                "instance" => $instance
+            );
+        }
+        foreach ($piped_fields as $field => $source) {
+            $query_fields[$field] = array (
+                "field" => $source->field, 
+                "event_id" => Event::getEventIdByName($project_id, $source->event),
+                "instance" => $source->instance ?: 1
+            );
+        }
+        
+        $field_data = array();
+        foreach ($query_fields as $field => $source) {
+            $q = REDCap::getData('json',$record, $source["field"], $source["event_id"]);
+            $results = json_decode($q, true);
+            $result = $results[0];
+            //Util::log($result);
+            $field_meta = $Proj->metadata[$source["field"]];
             $field_type = $field_meta['element_type'];
             if ($field_type == 'descriptive' && !empty($field_meta['edoc_id'])) {
                 $doc_id = $field_meta['edoc_id'];
             } elseif ($field_type == 'file') {
-                $doc_id = $result[$field];
+                $doc_id = $result[$source["field"]];
             } else {
                 // invalid field type!
             }
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
-                $preview_fields[$field] = array(
-                    'suffix'     => pathinfo($doc_name, PATHINFO_EXTENSION),
-                    'params'     => $params,
-                    'mime_type'  => $mime_type,
-                    'doc_name'   => $doc_name
-                    // 'doc_id'     => $doc_id,
+                $field_data[$field] = array(
+                    'suffix'      => pathinfo($doc_name, PATHINFO_EXTENSION),
+                    'params'      => $source_fields[$source["field"]],
+                    'mime_type'   => $mime_type,
+                    'doc_name'    => $doc_name,
+                    'doc_id'      => $doc_id,
+                    'hash'        => Files::docIdHash($doc_id),
+                    'page'        => $instrument,
+                    'field_name'  => $source["field"],
+                    'record'      => $record,
+                    'event_id'    => $source["event_id"],
+                    'instance'    => $source["instance"],
+                    'survey_hash' => $survey_hash, 
                     // 'field_type' => $field_type
                 );
             }
         }
 
-        Util::log("Previewing existing files", $preview_fields);
+        $preview_fields = array();
+        foreach ($fields as $field => $_) {
+            $preview_fields[$field] = $field_data[$field];
+            $preview_fields[$field]["piped"] = false;
+        }
+        foreach ($piped_fields as $into => $from) {
+            $preview_fields[$into] = $field_data[$into];
+            $preview_fields[$into]["piped"] = true;
+            $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : @$active_field_params[$from];
+        }
 
+        Util::log("Previewing existing files", $preview_fields);
 
         $this->renderJavascriptSetup();
         ?>

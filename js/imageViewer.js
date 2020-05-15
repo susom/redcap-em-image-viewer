@@ -50,82 +50,102 @@ IVEM.init = function() {
  */
 IVEM.insertPreview = function(field, params, suffix, preview_hash) {
 
+    var data = IVEM.preview_fields[field]
     // Get parent tr for table
     var tr = $('tr[sq_id="' + field + '"]');
     if (! tr.length) return;
+    var td_label = tr.find('td.labelrc').last();
+
+    // Get hash (surveys only)
+    var hash = $('#form :input[name=__response_hash__]').val();
 
     // Get the hyperlink element (also handle descriptive fields)
     var a = $('a[name="' + field + '"], a.filedownloadlink', tr);
-    if (! a.length) return;
-
-    // Get the href
-    var src = a.attr('href');
-    if (! src) return;
+    var src = '';
+    if (a.length) {
+        // Get src from href
+        src = a.attr('href');
+        if (src == '') return;
+    }
+    else {
+        // Build src for piped fields
+        if (page.substr(0, 10) == 'DataEntry/') {
+            // "/redcap_v9.7.8/DataEntry/file_download.php?pid=157&page=upload&doc_id_hash=897e3684dd1550e625f5163be5c1cb2b8e3c7d62&id=499&s=&page=upload&record=1&event_id=336&field_name=upload&instance=1"
+            src = app_path_webroot + 'DataEntry/file_download.php?pid=' + pid + '&page=' + data.page + '&doc_id_hash=' + data.hash + '&id=' + data.doc_id + '&s=&record=' + data.record + "&event_id=" + data.event_id + '&field_name=' + data.field_name + '&instance=' + data.instance
+        }
+        else if (page.substr(0, 8) == 'surveys/') {
+            // http://dev-redcap/surveys/index.php?pid=157&__passthru=DataEntry%2Ffile_download.php&doc_id_hash=56add0f3738bb04f9d00a87ae976438335ff71dd&id=500&s=9YANRRXDP4&record=2&page=&event_id=336&field_name=upload&instance=1
+            src = app_path_webroot_full + page + '?pid=' + pid + '&__passthru=DataEntry%2Ffile_download.php&doc_id_hash=' + data.hash + '&id=' + data.doc_id + '&s=' + data.survey_hash + '&record=' + data.record + '&page=&event_id=' + data.event_id + '&field_name=' + data.field_name + '&instance=' + data.instance
+        }
+    }
 
     // Append the response hash if needed (only for surveys)
-    var hash = $('#form :input[name=__response_hash__]').val();
     if (src.indexOf('__response_hash__') === -1 && hash) {
         src += '&__response_hash__=' + hash;
         console.log('appending response hash');
     }
 
-    // Determine the width of the parent TD
-    var td_width = a.closest('td').width();
+    // Determine the width of the parent/child TD
+    var td_width = a.length ? a.closest('td').width() : td_label.width();
 
 
     // var params = IVEM.field_params[field];
     console.log("Processing" , field, params);
 
 
-    // // Check the details array
-    // if (file_detail = IVEM.file_details[field]) {
+    // A Preview hash indicates that the file was just uploaded and must be previewed using the every_page_before_render hook
+    // We will add the ivem_preview tag to the query string to distinguish this request
+    if (preview_hash) {
+        src += "&ivem_preview=" + preview_hash;
+    }
 
-        // // Get the file suffix
-        // var suffix = file_detail.suffix;
+    // Handle Valid Images
+    if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
+    {
+        // Create a new image element and shrink to fit wd_width
+        var img = $('<img/>')
+            .addClass('IVEM')
+            .attr('src', src)
+            .css('max-width',td_width + 'px')
+            .css({"margin-left":"auto","margin-right":"auto","display":"block"});
 
-        // A Preview hash indicates that the file was just uploaded and must be previewed using the every_page_before_render hook
-        // We will add the ivem_preview tag to the query string to distinguish this request
-        if (preview_hash) {
-            src += "&ivem_preview=" + preview_hash;
+        // Append custom CSS if specified for the field
+        $.each(params, function(k,v) {
+            img.css(k,v);
+        });
+
+        // Add image
+        if (a.length) {
+            a.before(img);
+        }
+        else {
+            td_label.append(img)
+        }
+    }
+
+    // Handle Valid PDF Files - https://github.com/pipwerks/PDFObject
+    else if (IVEM.valid_pdf_suffixes.indexOf(suffix) !== -1)
+    {
+        src = src + '&stream=1';
+        //console.log('Creating pdf with ' + src);
+
+        var pdf = $('<div/>').attr('id', field + '_pdfobject');
+        if (a.length) {
+            a.before(pdf);
+        }
+        else {
+            td_label.append(pdf);
         }
 
-        // Handle Valid Images
-        if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
-        {
-            // Create a new image element and shrink to fit wd_width
-            var img = $('<img/>')
-                .addClass('IVEM')
-                .attr('src', src)
-                .css('max-width',td_width + 'px')
-                .css({"margin-left":"auto","margin-right":"auto","display":"block"});
+        //console.log("pdf_src",src);
 
-            // Append custom CSS if specified for the field
-            $.each(params, function(k,v) {
-                img.css(k,v);
-            });
+        // Set default pdf options and load any custom options from the params
+        var options = { "fallbackLink": "This browser does not support inline PDFs" };
+        $.extend(options, params);
 
-            img.prependTo(a);
-        }
-
-        // Handle Valid PDF Files - https://github.com/pipwerks/PDFObject
-        else if (IVEM.valid_pdf_suffixes.indexOf(suffix) !== -1)
-        {
-            src = src + '&stream=1';
-            //console.log('Creating pdf with ' + src);
-
-            var pdf = $('<div/>').attr('id', field + '_pdfobject');
-            pdf.prependTo(a);
-
-            //console.log("pdf_src",src);
-
-            // Set default pdf options and load any custom options from the params
-            var options = { "fallbackLink": "This browser does not support inline PDFs" };
-            $.extend(options, params);
-
-            // Create object
-            IVEM[field + '_pdf'] = PDFObject.embed(src, pdf, options);
-        }
-    // }
+        // Create object
+        IVEM[field + '_pdf'] = PDFObject.embed(src, pdf, options);
+    }
 };
 
 
