@@ -106,13 +106,14 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
                 $params = $param_array["params"];
                 // Need to create correct context for the piping of special tags (instance, event smart variables)
                 $raw_params = json_decode($params);
-                $field_instrument = $pds["fields"][$raw_params->field]["form"];
-                $params = Piping::pipeSpecialTags($params, $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
-                $params = json_decode($params);
-                if (is_string($params)) {
-                    $params = json_decode("{\"field\":\"$params\"}");
+                if (is_string($raw_params)) {
+                    $raw_params = json_decode("{\"field\":\"$params\"}");
                 }
-                $field_params[$field] = $params;
+                $field_instrument = $pds["fields"][$raw_params->field]["form"];
+                $raw_params->event = Piping::pipeSpecialTags($raw_params->event, $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
+                $ctx_event_id = Event::getEventIdByName($project_id, $raw_params->event);
+                $raw_params->instance = Piping::pipeSpecialTags($raw_params->instance, $project_id, $record, $ctx_event_id, null, null, false, null, $field_instrument, false, false);
+                $field_params[$field] = $raw_params;
             }
         }
         return $field_params;
