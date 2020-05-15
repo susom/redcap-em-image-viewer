@@ -190,7 +190,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
             $active_field_params = $this->getFieldParams();
 
             // Make sure the field is tagged for this module
-            if (!isset($active_field_params[$field_name])) return;
+            if (!array_key_exists($field_name, $active_field_params)) return;
 
             // Verify this file_id has the right hash
             $doc_id = filter_input( INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT );
