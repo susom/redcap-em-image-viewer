@@ -315,10 +315,17 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         }
         
         $field_data = array();
+        $pds = $this->getProjectDataStructure($project_id);
+
         foreach ($query_fields as $field => $source) {
             $q = REDCap::getData('json',$record, $source["field"], $source["event_id"]);
             $results = json_decode($q, true);
-            $result = $results[0];
+            if ($pds["fields"][$source["field"]]["repeating_form"]) {
+                $result = $results[$source["instance"]];
+            }
+            else {
+                $result = $results[0];
+            }
             //Util::log($result);
             $field_meta = $Proj->metadata[$source["field"]];
             $field_type = $field_meta['element_type'];
