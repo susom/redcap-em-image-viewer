@@ -98,12 +98,16 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
 
         $field_params = array();
+        $pds = $this->getProjectDataStructure($project_id);
 
         $action_tag_results = ActionTagHelper::getActionTags($this->imagePipeTag);
         if (isset($action_tag_results[$this->imagePipeTag])) {
             foreach ($action_tag_results[$this->imagePipeTag] as $field => $param_array) {
                 $params = $param_array["params"];
-                $params = Piping::pipeSpecialTags($params, $project_id, $record, $event_id, $instrument, null, false, null, $instrument, false, false);
+                // Need to create correct context for the piping of special tags (instance, event smart variables)
+                $raw_params = json_decode($params);
+                $field_instrument = $pds["fields"][$raw_params->field]["form"];
+                $params = Piping::pipeSpecialTags($params, $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
                 $params = json_decode($params);
                 if (is_string($params)) {
                     $params = json_decode("{\"field\":\"$params\"}");
