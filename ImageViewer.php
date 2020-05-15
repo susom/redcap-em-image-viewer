@@ -303,14 +303,14 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
             $query_fields[$field] = array(
                 "field" => $field, 
                 "event_id" => $event_id * 1, 
-                "instance" => $instance
+                "instance" => $instance * 1
             );
         }
         foreach ($piped_fields as $field => $source) {
             $query_fields[$field] = array (
                 "field" => $source->field, 
                 "event_id" => $source->event ? Event::getEventIdByName($project_id, $source->event) : $event_id * 1,
-                "instance" => $source->instance ?: 1
+                "instance" => $source->instance * 1 ?: 1
             );
         }
         
