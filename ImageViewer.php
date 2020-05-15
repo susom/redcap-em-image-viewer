@@ -184,7 +184,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
             // This EM relies on a new method for external modules which allows them to quit without an error.  Until
             // that is released, we will just try to play with the buffer to suppress the output of the rest of the
             // script.
-            $hack = ! method_exists($this, "exit");
+            $hack = ! method_exists($this, "exitAfterHook");
 
             $field_name = filter_input(INPUT_GET, 'field_name', FILTER_SANITIZE_STRING );
             $active_field_params = $this->getFieldParams();
@@ -256,7 +256,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
                 return;
             } else {
                 // Use the new method to cleanly exist from this method
-                $this->exit();
+                $this->exitAfterHook();
             }
         }
     }
