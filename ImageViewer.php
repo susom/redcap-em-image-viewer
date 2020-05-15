@@ -305,7 +305,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         foreach ($piped_fields as $field => $source) {
             $query_fields[$field] = array (
                 "field" => $source->field, 
-                "event_id" => Event::getEventIdByName($project_id, $source->event),
+                "event_id" => $source->event ? Event::getEventIdByName($project_id, $source->event) : $event_id * 1,
                 "instance" => $source->instance ?: 1
             );
         }
