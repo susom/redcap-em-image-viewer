@@ -20,6 +20,11 @@
       "name": "Andrew Martin",
       "email": "andy123@stanford.edu",
       "institution": "Stanford University"
+    },
+    {
+      "name": "Günther Rezniczek", 
+      "email": "guenther.rezniczek@rub.de",
+      "institution": "Ruhr-Universität Bochum"
     }
   ],
 
@@ -49,7 +54,7 @@
   "project-settings": [
     {
       "key": "active-fields",
-      "name": "Configure 1 or more file-upload fields to active ImageViewer preview:",
+      "name": "Configure one or more file-upload fields to activate ImageViewer preview:",
       "required": false,
       "type": "sub_settings",
       "repeatable": true,
