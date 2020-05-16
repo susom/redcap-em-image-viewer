@@ -33,6 +33,10 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
   - Instances must be specified by number.
   - Smart Variables can be used for event and instance.
 
+## Piping and Security
+
+- Piped images or PDFs from forms the user (or survey participant) has no access to **will** be displayed.
+- Security measures are in place that prevent unauthorized downloads.
 
 ## Example
 
