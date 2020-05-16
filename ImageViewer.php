@@ -61,7 +61,16 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     {
         $project_id = $project_id === null ? -1 : $project_id * 1;
         // Handle survey call-backs for the file after upload
-        if ( (PAGE == "surveys/index.php" || PAGE == "DataEntry/file_download.php") && isset($_GET['ivem_preview']) ) {
+        if ((PAGE == "surveys/index.php" || PAGE == "DataEntry/file_download.php") && isset($_GET["ivem_preview"])) {
+
+            // Verify payload
+            if (!class_exists("\DE\RUB\CryptoHelper")) include_once("classes/CryptoHelper.php");
+            $crypto = \DE\RUB\CryptoHelper\Crypto::init();
+            $payload = $_GET["ivem_preview"];
+            $payload = $crypto->decrypt($payload);
+            if (!is_array($payload) || $payload["pid"] !== $project_id) {
+                return;
+            }
 
             /*
             [pid] => 12251
@@ -85,9 +94,9 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
 
             $field_name = filter_input(INPUT_GET, 'field_name', FILTER_SANITIZE_STRING);
             $active_field_params = $this->getFieldParams();
-
-            // Make sure the field is tagged for this module
+            // Make sure the field is tagged for this module and that download is allowed
             if (!array_key_exists($field_name, $active_field_params)) return;
+            if (!in_array($field_name, $payload["allowed"], true)) return;
 
             // Verify this file_id has the right hash
             $doc_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT);
@@ -239,9 +248,27 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     /**
      * Include JavaScript files and output basic JavaScript setup
      */
-    function renderJavascriptSetup() {
+    function renderJavascriptSetup($project_id = null) {
         $field_params = $this->getFieldParams();
-        $debug = $this->getSystemSetting("javascript-debug") == true;
+        // Make a list of all fields that may be downloaded
+        $allowed = array_values(array_map(function($e) { 
+            return $e->field; 
+        }, $this->getPipedFields()));
+        $allowed = array_unique(array_merge($allowed, array_keys($field_params)));
+        $debug = $this->getProjectSetting("javascript-debug") == true;
+        // Security token - needed to perform safe piping
+        if ($project_id) {
+            if (!class_exists("\DE\RUB\CryptoHelper")) include_once("classes/CryptoHelper.php");
+            $crypto = \DE\RUB\CryptoHelper\Crypto::init();
+            $payload = $crypto->encrypt(array( 
+                "pid" => $project_id * 1,
+                "allowed" => $allowed
+            ));
+        }
+        else {
+            $payload = "nop";
+        }
+        $payload = urlencode($payload);
         ?>
             <script src="<?php print $this->getUrl('js/pdfobject.min.js'); ?>"></script>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
@@ -249,6 +276,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
                 IVEM.valid_image_suffixes = <?php print json_encode($this->valid_image_suffixes) ?>;
                 IVEM.valid_pdf_suffixes = <?php print json_encode($this->valid_pdf_suffixes) ?>;
                 IVEM.field_params = <?php print json_encode($field_params) ?>;
+                IVEM.payload = <?php print json_encode($payload) ?>;
                 IVEM.debug = <?php print json_encode($debug) ?>;
                 IVEM.log("Initialized IVEM", IVEM);
             </script>
@@ -364,7 +392,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
 
         Util::log("Previewing existing files", $preview_fields);
 
-        $this->renderJavascriptSetup();
+        $this->renderJavascriptSetup($project_id);
         ?>
             <script>
                 // Load the fields and parameters and start it up

@@ -75,10 +75,10 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     else {
         // Build src for piped fields
         if (page.substr(0, 10) == 'DataEntry/') {
-            src = app_path_webroot + 'DataEntry/file_download.php?pid=' + pid + '&page=' + data.page + '&doc_id_hash=' + data.hash + '&id=' + data.doc_id + '&s=&record=' + data.record + '&event_id=' + data.event_id + '&field_name=' + data.field_name + '&instance=' + data.instance
+            src = app_path_webroot + 'DataEntry/file_download.php?pid=' + pid + '&page=' + data.page + '&doc_id_hash=' + data.hash + '&id=' + data.doc_id + '&ivem_preview=' + IVEM.payload + '&s=&record=' + data.record + '&event_id=' + data.event_id + '&field_name=' + data.field_name + '&instance=' + data.instance
         }
         else if (page.substr(0, 8) == 'surveys/') {
-            src = app_path_webroot_full + page + '?pid=' + pid + '&__passthru=DataEntry%2Ffile_download.php&doc_id_hash=' + data.hash + '&id=' + data.doc_id + '&s=' + data.survey_hash + '&record=' + data.record + '&page=&event_id=' + data.event_id + '&field_name=' + data.field_name + '&instance=' + data.instance
+            src = app_path_webroot_full + page + '?pid=' + pid + '&__passthru=DataEntry%2Ffile_download.php&doc_id_hash=' + data.hash + '&id=' + data.doc_id + '&ivem_preview=' + IVEM.payload + '&s=' + data.survey_hash + '&record=' + data.record + '&page=&event_id=' + data.event_id + '&field_name=' + data.field_name + '&instance=' + data.instance
         }
     }
 
@@ -95,7 +95,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
     // A preview hash indicates that the file was just uploaded and must be previewed using the every_page_before_render hook
     // We will add the ivem_preview tag to the query string to distinguish this request
     if (preview_hash) {
-        src += '&ivem_preview=' + preview_hash;
+        src += '&ivem_preview=' + IVEM.payload;
     }
     // Handle valid images
     if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
