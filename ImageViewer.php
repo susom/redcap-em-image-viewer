@@ -59,6 +59,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     // Renders the preview after a fresh upload
     function hook_every_page_before_render($project_id = null)
     {
+        $project_id = $project_id === null ? -1 : $project_id * 1;
         // Handle survey call-backs for the file after upload
         if ( (PAGE == "surveys/index.php" || PAGE == "DataEntry/file_download.php") && isset($_GET['ivem_preview']) ) {
 
