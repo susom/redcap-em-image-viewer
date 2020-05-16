@@ -38,9 +38,18 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
 - Piped images or PDFs from forms the user (or survey participant) has no access to **will** be displayed.
 - Security measures are in place that prevent unauthorized downloads.
 
-## Example
+## Examples
 
-![Example Survey](docs/example.png)
+### Upload preview
+
+![Example Survey](docs/preview.png)
+
+### Piping
+
+Consider the record structure in this example: Images are uploaded in both events. In the second event, the upload field is on a repeating form.  
+`View` is set up to show the file from the first event (`upload`) and the _last instance_ of the file from the second event (`upload2`).
+
+![Piping Example](docs/piping.png)
 
 ## Changelog
 
