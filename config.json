@@ -54,6 +54,11 @@
 
   "project-settings": [
     {
+      "key": "javascript-debug",
+      "name": "Output debug information in the browser console",
+      "type": "checkbox"
+    },
+    {
       "key": "active-fields",
       "name": "Configure one or more file-upload fields to activate ImageViewer preview:",
       "required": false,
