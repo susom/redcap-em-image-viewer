@@ -6,7 +6,27 @@ IVEM.uploadComplete = IVEM.uploadComplete || [];
 // Debug logging
 IVEM.log = function() {
     if (IVEM.debug) {
-        console.log(arguments);
+        switch(arguments.length) {
+            case 1: 
+                console.log(arguments[0]); 
+                return;
+            case 2: 
+                console.log(arguments[0], arguments[1]); 
+                return;
+            case 3: 
+                console.log(arguments[0], arguments[1], arguments[2]); 
+                return;
+            case 4:
+                console.log(arguments[0], arguments[1], arguments[2], arguments[3]); 
+                return;
+            default:
+                try {
+                    console.log(...arguments);
+                }
+                catch {
+                    console.log(arguments);
+                }
+        }
     }
 }
 
