@@ -249,6 +249,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
                 IVEM.valid_pdf_suffixes = <?php print json_encode($this->valid_pdf_suffixes) ?>;
                 IVEM.field_params = <?php print json_encode($field_params) ?>;
                 IVEM.debug = <?php print json_encode($debug) ?>;
+                IVEM.log("Initialized IVEM", IVEM);
             </script>
         <?php
     }
