@@ -1,6 +1,6 @@
 <?php namespace Stanford\ImageViewer;
 
-if (!class_exists('Util')) include_once('classes/Util.php');
+if (!class_exists("Util")) include_once("classes/Util.php");
 
 use \REDCap as REDCap;
 use \Files as Files;
@@ -175,7 +175,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         }
 
         // Get from action tags (and only take if not specified in external module settings)
-        if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
+        if (!class_exists("\Stanford\Utility\ActionTagHelper")) include_once("classes/ActionTagHelper.php");
 
         $action_tag_results = ActionTagHelper::getActionTags($this->imageViewTag);
         if (isset($action_tag_results[$this->imageViewTag])) {
@@ -210,7 +210,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
      */
     function getPipedFields($project_id = null, $instrument = null, $record = null, $event_id = null, $instance = 1) {
         // Get from action tags (and only take if not specified in external module settings)
-        if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
+        if (!class_exists("\Stanford\Utility\ActionTagHelper")) include_once("classes/ActionTagHelper.php");
 
         $field_params = array();
         $pds = $this->getProjectDataStructure($project_id);
