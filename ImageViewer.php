@@ -1,11 +1,4 @@
-<?php
-/**
- * Created by PhpStorm.
- * User: andy123
- * Date: 12/5/17
- * Time: 2:49 PM
- */
-namespace Stanford\ImageViewer;
+<?php namespace Stanford\ImageViewer;
 
 if (!class_exists('Util')) include_once('classes/Util.php');
 
@@ -16,44 +9,157 @@ use \Event as Event;
 
 use Stanford\Utility\ActionTagHelper;
 
-class ImageViewer extends \ExternalModules\AbstractExternalModule
-{
+class ImageViewer extends \ExternalModules\AbstractExternalModule {
 
     private $imageViewTag = "@IMAGEVIEW";
     private $imagePipeTag = "@IMAGEPIPE";
     private $valid_image_suffixes = array('jpeg','jpg','jpe','gif','png','tif','bmp');
     private $valid_pdf_suffixes = array('pdf');
 
-
-    function __construct()
-    {
+    function __construct() {
         parent::__construct();
 
-        // ADD SOME CONTEXT TO THE GLOBALS FOR THIS MODULE:
+        // Add some context to $GLOBALS (used by Utli::log)
         $GLOBALS['external_module_prefix'] = $this->PREFIX;
         $GLOBALS['external_module_log_path'] = $this->getSystemSetting('log-path');
     }
 
+    #region Hooks -----------------------------------------------------------------------------------------------------------
 
     // Capture normal data-entry
     function hook_data_entry_form_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $repeat_instance = 1) {
         self::renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
     }
 
-
     // Capture surveys
     function hook_survey_page_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1) {
         self::renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
     }
 
+    // Designer and Project Setup cosmetics
+    function hook_every_page_top($project_id = null)
+    {
+        // When on the online designer, let's highlight the fields tagged for this EM
+        if (PAGE == "Design/online_designer.php") {
+            $this->renderJavascriptSetup();
+            ?>
+                <script>IVEM.interval = window.setInterval(IVEM.highlightFields, 1000);</script>
+            <?php
+        }
+        // Announce that this project is using the Image Viewer EM
+        if (PAGE == "ProjectSetup/index.php") {
+            $this->renderJavascriptSetup();
+            ?>
+                <style>.em-label { padding: 5px; }</style>
+                <script>IVEM.projectSetup();</script>
+            <?php
+        }
+    }
+
+    // Renders the preview after a fresh upload
+    function hook_every_page_before_render($project_id = null)
+    {
+        // Handle survey call-backs for the file after upload
+        if ( (PAGE == "surveys/index.php" || PAGE == "DataEntry/file_download.php") && isset($_GET['ivem_preview']) ) {
+
+            /*
+            [pid] => 12251
+            [__passthru] => DataEntry/file_download.php
+            [doc_id_hash] => 2356ab2a910fac5d3ae62a488e3d7499be78bd70
+            [id] => 438252
+            [s] => BMGtQL8uIz
+            [record] => 9
+            [page] => my_first_instrument
+            [event_id] => 75998
+            [field_name] => file_upload
+            [instance] => 1
+            [__response_hash__] => 7bc7e7d27f22e27252129dea5664723084df21d5e2340f1ba79185ac26dda168
+            [pnid] => imageview_em_test
+             */
+
+            // This EM relies on a new method for external modules which allows them to quit without an error.  Until
+            // that is released, we will just try to play with the buffer to suppress the output of the rest of the
+            // script.
+            $hack = ! method_exists($this, "exitAfterHook");
+
+            $field_name = filter_input(INPUT_GET, 'field_name', FILTER_SANITIZE_STRING);
+            $active_field_params = $this->getFieldParams();
+
+            // Make sure the field is tagged for this module
+            if (!array_key_exists($field_name, $active_field_params)) return;
+
+            // Verify this file_id has the right hash
+            $doc_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT);
+            $doc_id_hash = Files::docIdHash($doc_id);
+            if ($doc_id_hash !== $_GET['doc_id_hash']) return;
+
+            // Get file attributes and contents
+            list($mime_type, $doc_name, $contents) = Files::getEdocContentsAttributes($doc_id);
+            $suffix = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
+            if(!in_array($suffix, array_merge($this->valid_pdf_suffixes, $this->valid_image_suffixes))) {
+                // Invalid suffix - skip
+                Util::log("Invalid Suffix", $doc_name);
+            } else {
+                // Get size of contents
+                if (function_exists('mb_strlen')) {
+                    $size = mb_strlen($contents, '8bit');
+                } else {
+                    $size = strlen($contents);
+                }
+                if (strlen($contents) > 0)
+                {
+                    // If we are hacking the buffers, then lets start clean:
+                    if ($hack) {
+                        ob_end_clean();
+                        header("Connection: close");
+                        ob_start();
+                    }
+                    header('Pragma: anytextexeptno-cache', true);
+                    if (isset($_GET['stream'])) {
+                        // Stream the file (e.g. audio)
+                        header('Content-Type: '.$mime_type);
+                        header('Content-Disposition: inline; filename="'.$doc_name.'"');
+                        header('Content-Length: ' . $size);
+                        header("Content-Transfer-Encoding: binary");
+                        header('Accept-Ranges: bytes');
+                        header('Connection: Keep-Alive');
+                        header('X-Pad: avoid browser bug');
+                        header('Content-Range: bytes 0-'.($size - 1).'/'.$size);
+                    } else {
+                        // Download
+                        header('Content-Type: '.$mime_type.'; name="'.$doc_name.'"');
+                        header('Content-Disposition: attachment; filename="'.$doc_name.'"');
+                    }
+                    print $contents;
+                    // If we are hacking the buffer, let's flush everything now
+                    if ($hack) {
+                        ob_end_flush();
+                        ob_flush();
+                        flush();
+                    }
+                }
+            }
+            // THIS IS A TEMPORARY HACK UNTIL EXTERNAL MODS SUPPORT
+            if ($hack) {
+                // Return to the EM handler and hope the rest of the page doesn't trigger any problems.
+                $_GET[] = array();
+                return;
+            }
+            else {
+                // Use the new method to cleanly exist from this method
+                $this->exitAfterHook();
+            }
+        }
+    }
+
+    #endregion --------------------------------------------------------------------------------------------------------------
 
 
+    #region Setup and Rendering ---------------------------------------------------------------------------------------------
 
     /**
      * Returns an array containing active fields and parameters for each field
-     *
      * @return array
-     * @throws \Exception
      */
     function getFieldParams() {
 
@@ -88,11 +194,20 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         foreach ($field_params as $field => &$params) {
             $params = json_decode($params);
         }
-
         Util::log(__FUNCTION__, $field_params);
         return $field_params;
     }
 
+    /**
+     * Returns an array containing piped fields (@IMAGEPIPE action-tag). This needs context in order to find the correct 
+     * source field.
+     * @param $project_id
+     * @param $instrument
+     * @param $record
+     * @param $event_id
+     * @param $instance
+     * @return array
+     */
     function getPipedFields($project_id = null, $instrument = null, $record = null, $event_id = null, $instance = 1) {
         // Get from action tags (and only take if not specified in external module settings)
         if (!class_exists('\Stanford\Utility\ActionTagHelper')) include_once('classes/ActionTagHelper.php');
@@ -116,159 +231,37 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
                 $field_params[$field] = $raw_params;
             }
         }
+        Util::log(__FUNCTION__, $field_params);
         return $field_params;
     }
 
-
-    function hook_every_page_top($project_id = null)
-    {
-        // When on the online designer, let's highlight the fields tagged for this em
-        if (PAGE == "Design/online_designer.php") {
-            $this->renderJavascriptSetup();
-            ?>
-                <script>IVEM.interval = window.setInterval(IVEM.highlightFields, 1000);</script>
-            <?php
-        }
-
-        if (PAGE == "ProjectSetup/index.php") {
-            $this->renderJavascriptSetup();
-            ?>
-                <style>.em-label { padding: 5px; }</style>
-                <script>IVEM.projectSetup();</script>
-            <?php
-        }
-    }
-
-
+    /**
+     * Include JavaScript files and output basic JavaScript setup
+     */
     function renderJavascriptSetup() {
         $field_params = $this->getFieldParams();
-        $piped_fields = $this->getPipedFields();
-        foreach ($piped_fields as $into => $from) {
-            $field_params[$into] = $field_params[$from];
-        }
+        $debug = $this->getSystemSetting("javascript-debug") == true;
         ?>
+            <script src="<?php print $this->getUrl('js/pdfobject.min.js'); ?>"></script>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
-            <script><?php print file_get_contents($this->getModulePath() . 'js/pdfobject.min.js'); ?></script>
             <script>
                 IVEM.valid_image_suffixes = <?php print json_encode($this->valid_image_suffixes) ?>;
                 IVEM.valid_pdf_suffixes = <?php print json_encode($this->valid_pdf_suffixes) ?>;
                 IVEM.field_params = <?php print json_encode($field_params) ?>;
+                IVEM.debug = <?php print json_encode($debug) ?>;
             </script>
         <?php
     }
 
-
-    /**
-     * Used to render the preview after a fresh upload
-     * @param null $project_id
-     */
-    function hook_every_page_before_render($project_id = null)
-    {
-        // Handle survey call-backs for the file after upload
-        if ( (PAGE == "surveys/index.php" || PAGE == "DataEntry/file_download.php") && isset($_GET['ivem_preview']) ) {
-
-            /*
-            [pid] => 12251
-            [__passthru] => DataEntry/file_download.php
-            [doc_id_hash] => 2356ab2a910fac5d3ae62a488e3d7499be78bd70
-            [id] => 438252
-            [s] => BMGtQL8uIz
-            [record] => 9
-            [page] => my_first_instrument
-            [event_id] => 75998
-            [field_name] => file_upload
-            [instance] => 1
-            [__response_hash__] => 7bc7e7d27f22e27252129dea5664723084df21d5e2340f1ba79185ac26dda168
-            [pnid] => imageview_em_test
-             */
-
-            // This EM relies on a new method for external modules which allows them to quit without an error.  Until
-            // that is released, we will just try to play with the buffer to suppress the output of the rest of the
-            // script.
-            $hack = ! method_exists($this, "exitAfterHook");
-
-            $field_name = filter_input(INPUT_GET, 'field_name', FILTER_SANITIZE_STRING );
-            $active_field_params = $this->getFieldParams();
-
-            // Make sure the field is tagged for this module
-            if (!array_key_exists($field_name, $active_field_params)) return;
-
-            // Verify this file_id has the right hash
-            $doc_id = filter_input( INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT );
-            $doc_id_hash = Files::docIdHash( $doc_id );
-            if ($doc_id_hash !== $_GET['doc_id_hash']) return;
-
-            // Get file attributes and contents
-            list($mime_type, $doc_name, $contents) = Files::getEdocContentsAttributes($doc_id);
-
-            $suffix = strtolower( pathinfo($doc_name, PATHINFO_EXTENSION) );
-            if(! in_array($suffix, array_merge($this->valid_pdf_suffixes, $this->valid_image_suffixes)) ) {
-                // Invalid suffix - skip
-                Util::log("Invalid Suffix", $doc_name);
-            } else {
-                // Get size of contents
-                if (function_exists('mb_strlen')) {
-                    $size = mb_strlen($contents, '8bit');
-                } else {
-                    $size = strlen($contents);
-                }
-
-                if (strlen($contents) > 0)
-                {
-                    // If we are hacking the buffers, then lets start clean:
-                    if ($hack) {
-                        ob_end_clean();
-                        header("Connection: close");
-                        ob_start();
-                    }
-
-                    header('Pragma: anytextexeptno-cache', true);
-                    if (isset($_GET['stream'])) {
-                        // Stream the file (e.g. audio)
-                        header('Content-Type: '.$mime_type);
-                        header('Content-Disposition: inline; filename="'.$doc_name.'"');
-                        header('Content-Length: ' . $size);
-                        header("Content-Transfer-Encoding: binary");
-                        header('Accept-Ranges: bytes');
-                        header('Connection: Keep-Alive');
-                        header('X-Pad: avoid browser bug');
-                        header('Content-Range: bytes 0-'.($size - 1).'/'.$size);
-                    } else {
-                        // Download
-                        header('Content-Type: '.$mime_type.'; name="'.$doc_name.'"');
-                        header('Content-Disposition: attachment; filename="'.$doc_name.'"');
-                    }
-                    print $contents;
-
-                    // If we are hacking the buffer, let's flush everything now
-                    if ($hack) {
-                        ob_end_flush();
-                        ob_flush();
-                        flush();
-                    }
-
-                }
-            }
-
-            // THIS IS A TEMPORARY HACK UNTIL EXTERNAL MODS SUPPORT
-            if ($hack) {
-                // return to the EM handler and hope the rest of the page doesn't trigger any problems.
-                $_GET[] = array();
-                return;
-            } else {
-                // Use the new method to cleanly exist from this method
-                $this->exitAfterHook();
-            }
-        }
-    }
-
-
     /**
      * This function passess along details about existing uploaded files so they can be previewed immediately after the
-     * page is rendered
+     * page is rendered or displayed when piped with the @IMAGEPIPE action-tag
+     * @param $project_id
      * @param $instrument
      * @param $record
      * @param $event_id
+     * @param $instance
+     * @param @survey_hash
      * @throws \Exception
      */
     function renderPreview($project_id, $instrument, $record, $event_id, $instance, $survey_hash = null) {
@@ -289,12 +282,11 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
                 $source_fields[$source->field] = @$active_field_params[$field];
             }
         }
-
+        // Anything to do?
         if (count($fields) + count($piped_fields) == 0) {
             Util::log("There are no active fields or piped fields on instrument $instrument", "DEBUG");
             return;
         }
-
 
         // We need to know the filetype to validate when the file has been previously uploaded...
         // Get type of field
@@ -314,10 +306,9 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
                 "instance" => $source->instance * 1 ?: 1
             );
         }
-        
+        // Get field data - how to get this depends on the data structure of the project (repeating forms/events)
         $field_data = array();
         $pds = $this->getProjectDataStructure($project_id);
-
         foreach ($query_fields as $field => $source) {
             $q = REDCap::getData('json',$record, $source["field"], $source["event_id"]);
             $results = json_decode($q, true);
@@ -332,9 +323,11 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
             $field_type = $field_meta['element_type'];
             if ($field_type == 'descriptive' && !empty($field_meta['edoc_id'])) {
                 $doc_id = $field_meta['edoc_id'];
-            } elseif ($field_type == 'file') {
+            } 
+            elseif ($field_type == 'file') {
                 $doc_id = $result[$source["field"]];
-            } else {
+            } 
+            else {
                 // invalid field type!
             }
             if ($doc_id > 0) {
@@ -352,7 +345,6 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
                     'event_id'    => $source["event_id"],
                     'instance'    => $source["instance"],
                     'survey_hash' => $survey_hash, 
-                    // 'field_type' => $field_type
                 );
             }
         }
@@ -380,6 +372,10 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
         <?php
     }
 
+    #endregion --------------------------------------------------------------------------------------------------------------
+
+
+    #region Project Data Structure Helper -----------------------------------------------------------------------------------
 
     /**
      * Gets the repeating forms and events in the current or specified project.
@@ -657,4 +653,6 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule
     }
 
     private static $ProjectDataStructureCache = array();
+
+    #endregion --------------------------------------------------------------------------------------------------------------
 }
