@@ -31,7 +31,7 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
   `@IMAGEPIPE={"field":"file_upload_field","event":123,"instance":1}`
   - Events can be specified by name or number.
   - Instances must be specified by number.
-  - Smart Variables can be used for event and instance - specify as e.g. `{}..., "instance":"[first-instance]"}`.
+  - Smart Variables can be used for event and instance - specify as e.g. `{..., "instance":"[first-instance]"}`.
 
 ## Piping and Security
 
