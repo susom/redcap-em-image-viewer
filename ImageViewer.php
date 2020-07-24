@@ -232,11 +232,11 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
                 // Need to create correct context for the piping of special tags (instance, event smart variables)
                 $raw_params = json_decode($params);
                 if (is_string($raw_params)) {
-                    $raw_params = json_decode("{\"field\":\"$params\"}");
+                    $raw_params = json_decode("{\"field\":\"$raw_params\",\"event\":\"[event-name]\",\"instance\":\"[current-instance]\"}");
                 }
                 $field_instrument = $pds["fields"][$raw_params->field]["form"];
                 $raw_params->event = Piping::pipeSpecialTags($raw_params->event, $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
-                $ctx_event_id = Event::getEventIdByName($project_id, $raw_params->event);
+                $ctx_event_id = is_numeric($raw_params->event) ? $raw_params->event : Event::getEventIdByName($project_id, $raw_params->event);
                 $raw_params->instance = Piping::pipeSpecialTags($raw_params->instance, $project_id, $record, $ctx_event_id, null, null, false, null, $field_instrument, false, false);
                 $field_params[$field] = $raw_params;
             }
@@ -332,7 +332,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         foreach ($piped_fields as $field => $source) {
             $query_fields[$field] = array (
                 "field" => $source->field, 
-                "event_id" => $source->event ? Event::getEventIdByName($project_id, $source->event) : $event_id * 1,
+                "event_id" => is_numeric($source->event) ? $source->event : Event::getEventIdByName($project_id, $source->event),
                 "instance" => $source->instance * 1 ?: 1
             );
         }
@@ -340,22 +340,28 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         $field_data = array();
         $pds = $this->getProjectDataStructure($project_id);
         foreach ($query_fields as $field => $source) {
-            $q = REDCap::getData('json',$record, $source["field"], $source["event_id"]);
-            $results = json_decode($q, true);
-            if ($pds["fields"][$source["field"]]["repeating_form"]) {
-                $result = $results[$source["instance"]];
+            $sourceField = $source["field"];
+            $sourceForm = $pds["fields"][$sourceField]["form"];
+            $sourceEventId = $source["event_id"];
+            $sourceInstance = $source["instance"];
+            $data = REDCap::getData('array',$record, $sourceField);
+            if ($pds["fields"][$sourceField]["repeating_form"]) {
+                $result = $data[$record]["repeat_instances"][$sourceEventId][$sourceForm][$sourceInstance];
+            }
+            else if ($pds["fields"][$sourceField]["repeating_event"]) {
+                $result = $data[$record]["repeat_instances"][$sourceEventId][null][$sourceInstance];
             }
             else {
-                $result = $results[0];
+                $result = $data[$record][$sourceEventId];
             }
             //Util::log($result);
-            $field_meta = $Proj->metadata[$source["field"]];
+            $field_meta = $Proj->metadata[$sourceField];
             $field_type = $field_meta['element_type'];
             if ($field_type == 'descriptive' && !empty($field_meta['edoc_id'])) {
                 $doc_id = $field_meta['edoc_id'];
             } 
             elseif ($field_type == 'file') {
-                $doc_id = $result[$source["field"]];
+                $doc_id = $result[$sourceField];
             } 
             else {
                 // invalid field type!
@@ -370,10 +376,10 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
                     'doc_id'      => $doc_id,
                     'hash'        => Files::docIdHash($doc_id),
                     'page'        => $instrument,
-                    'field_name'  => $source["field"],
+                    'field_name'  => $sourceField,
                     'record'      => $record,
-                    'event_id'    => $source["event_id"],
-                    'instance'    => $source["instance"],
+                    'event_id'    => $sourceEventId,
+                    'instance'    => $sourceInstance,
                     'survey_hash' => $survey_hash, 
                 );
             }

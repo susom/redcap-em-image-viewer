@@ -31,7 +31,7 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
   `@IMAGEPIPE={"field":"file_upload_field","event":123,"instance":1}`
   - Events can be specified by name or number.
   - Instances must be specified by number.
-  - Smart Variables can be used for event and instance.
+  - Smart Variables can be used for event and instance - specify as e.g. `{}..., "instance":"[first-instance]"}`.
 
 ## Piping and Security
 
@@ -55,6 +55,7 @@ Consider the record structure in this example: Images are uploaded in both event
 
 Version | Description
 ------- | -------------------
+1.4.1   | Bug fixes (repeating events)
 1.4.0   | Added support for image/PDF piping with the @IMAGEPIPE action-tag. Images are not part of the hyperlink any more.
 1.3.2   | Supports embedding PDFs from descriptive fields as well.
 1.3.1   | Made a minor fix in the ActionTag class that was calling an external class not included in the module.
