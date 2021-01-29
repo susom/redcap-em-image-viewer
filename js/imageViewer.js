@@ -118,7 +118,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
         src += '&ivem_preview=' + IVEM.payload;
     }
     // Handle valid images
-    if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
+    if (IVEM.valid_image_suffixes.indexOf(suffix.toLowerCase()) !== -1)
     {
         // Create a new image element and shrink to fit wd_width.
         var img = $('<img/>')
@@ -142,7 +142,7 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
         }
     }
     // Handle Valid PDF Files - https://github.com/pipwerks/PDFObject
-    else if (IVEM.valid_pdf_suffixes.indexOf(suffix) !== -1)
+    else if (IVEM.valid_pdf_suffixes.indexOf(suffix.toLowerCase()) !== -1)
     {
         src = src + '&stream=1';
         IVEM.log('Creating PDF with ' + src);
