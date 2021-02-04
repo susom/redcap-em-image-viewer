@@ -376,22 +376,24 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             else {
                 // invalid field type!
             }
+            $field_data[$field] = array (
+                'container_id' => "ivem-$field-$event_id-$instance",
+                'params'       => $source_fields[$source["field"]],
+                'page'         => $instrument,
+                'field_name'   => $sourceField,
+                'record'       => $record,
+                'event_id'     => $sourceEventId,
+                'instance'     => $sourceInstance,
+                'survey_hash'  => $survey_hash,
+                'pipe_source'  => "$sourceField-$sourceEventId-$sourceInstance",
+            );
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
-                $field_data[$field] = array(
-                    'suffix'      => pathinfo($doc_name, PATHINFO_EXTENSION),
-                    'params'      => $source_fields[$source["field"]],
-                    'mime_type'   => $mime_type,
-                    'doc_name'    => $doc_name,
-                    'doc_id'      => $doc_id,
-                    'hash'        => Files::docIdHash($doc_id),
-                    'page'        => $instrument,
-                    'field_name'  => $sourceField,
-                    'record'      => $record,
-                    'event_id'    => $sourceEventId,
-                    'instance'    => $sourceInstance,
-                    'survey_hash' => $survey_hash, 
-                );
+                $field_data[$field]["suffix"] = pathinfo($doc_name, PATHINFO_EXTENSION);
+                $field_data[$field]["mime_type"] = $mime_type;
+                $field_data[$field]["doc_name"] = $doc_name;
+                $field_data[$field]["doc_id"] = $doc_id;
+                $field_data[$field]["hash"] = Files::docIdHash($doc_id);
             }
         }
 
@@ -400,7 +402,9 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             $preview_fields[$field] = $field_data[$field];
             $preview_fields[$field]["piped"] = false;
         }
+        $pipe_sources = array();
         foreach ($piped_fields as $into => $from) {
+            $pipe_sources[$from["field"]] = true;
             $preview_fields[$into] = $field_data[$into];
             $preview_fields[$into]["piped"] = true;
             $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : @$active_field_params[$from];
@@ -413,6 +417,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             <script>
                 // Load the fields and parameters and start it up
                 IVEM.preview_fields = <?php print json_encode($preview_fields) ?>;
+                IVEM.pipe_sources = <?php print json_encode($pipe_sources) ?>;
                 IVEM.init();
             </script>
         <?php
