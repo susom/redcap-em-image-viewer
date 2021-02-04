@@ -55,6 +55,7 @@ Consider the record structure in this example: Images are uploaded in both event
 
 Version | Description
 ------- | -------------------
+1.4.3   | Added support for lowercase and fixed piping bugs (PR#6) 
 1.4.2   | Added REDCap minimal version requirement (9.7.8)
 1.4.1   | Bug fixes (repeating events)
 1.4.0   | Added support for image/PDF piping with the @IMAGEPIPE action-tag. Images are not part of the hyperlink any more.
