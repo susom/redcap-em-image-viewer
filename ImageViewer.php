@@ -28,12 +28,12 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
 
     // Capture normal data-entry
     function hook_data_entry_form_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
+        $this->renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
     }
 
     // Capture surveys
     function hook_survey_page_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
+        $this->renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
     }
 
     // Designer and Project Setup cosmetics
