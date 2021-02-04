@@ -113,7 +113,6 @@ IVEM.insertPreview = function(field, params) {
         src += '&ivem_preview=' + IVEM.payload;
     }
 
-
     // Create and insert a container
     // Check if it is already there, create otherwise
     var $container
