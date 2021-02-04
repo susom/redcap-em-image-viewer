@@ -2,6 +2,7 @@
 
 if (!class_exists("Util")) include_once("classes/Util.php");
 
+use DE\RUB\ImageViewerExternalModule\Project;
 use \REDCap as REDCap;
 use \Files as Files;
 use \Piping as Piping;
@@ -28,12 +29,12 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
 
     // Capture normal data-entry
     function hook_data_entry_form_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
+        $this->renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
     }
 
     // Capture surveys
     function hook_survey_page_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1) {
-        self::renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
+        $this->renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
     }
 
     // Designer and Project Setup cosmetics
@@ -222,22 +223,27 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         // Get from action tags (and only take if not specified in external module settings)
         if (!class_exists("\Stanford\Utility\ActionTagHelper")) include_once("classes/ActionTagHelper.php");
 
+        if (!class_exists("\DE\RUB\ImageViewerExternalModule\Project")) include_once ("classes/Project.php");
+        $project = new Project($this->framework, $project_id ?: $this->framework->getProjectId());
+
         $field_params = array();
-        $pds = $this->getProjectDataStructure($project_id);
 
         $action_tag_results = ActionTagHelper::getActionTags($this->imagePipeTag);
         if (isset($action_tag_results[$this->imagePipeTag])) {
             foreach ($action_tag_results[$this->imagePipeTag] as $field => $param_array) {
                 $params = $param_array["params"];
                 // Need to create correct context for the piping of special tags (instance, event smart variables)
-                $raw_params = json_decode($params);
+                $raw_params = json_decode($params, true);
                 if (is_string($raw_params)) {
-                    $raw_params = json_decode("{\"field\":\"$raw_params\",\"event\":\"[event-name]\",\"instance\":\"[current-instance]\"}");
+                    $raw_params = json_decode("{\"field\":\"$raw_params\",\"event\":\"[event-name]\",\"instance\":\"[current-instance]\"}", true);
                 }
-                $field_instrument = $pds["fields"][$raw_params->field]["form"];
-                $raw_params->event = Piping::pipeSpecialTags($raw_params->event, $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
-                $ctx_event_id = is_numeric($raw_params->event) ? $raw_params->event : Event::getEventIdByName($project_id, $raw_params->event);
-                $raw_params->instance = Piping::pipeSpecialTags($raw_params->instance, $project_id, $record, $ctx_event_id, null, null, false, null, $field_instrument, false, false);
+                if (!isset($raw_params["event"])) $raw_params["event"] = "[event-name]";
+                if (!isset($raw_params["instance"])) $raw_params["instance"] = "[current-instance]";
+                $field_instrument = $project->getFormByField($raw_params["field"]);
+                $raw_params["event"] = Piping::pipeSpecialTags($raw_params["event"] ?: "[event-name]", $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
+                $ctx_event_id = is_numeric($raw_params["event"]) ? $raw_params["event"] * 1 : Event::getEventIdByName($project_id, $raw_params["event"]);
+                $ctx_instance = $ctx_event_id == $event_id ? $instance : 1;
+                $raw_params["instance"] = Piping::pipeSpecialTags($raw_params["instance"] ?: "[current-instance]", $project_id, $record, $ctx_event_id, $ctx_instance, null, false, null, $field_instrument, false, false);
                 $field_params[$field] = $raw_params;
             }
         }
@@ -295,6 +301,10 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
      * @throws \Exception
      */
     function renderPreview($project_id, $instrument, $record, $event_id, $instance, $survey_hash = null) {
+
+        if (!class_exists("\DE\RUB\ImageViewerExternalModule\Project")) include_once ("classes/Project.php");
+        $project = new Project($this->framework, $project_id);
+
         $active_field_params = $this->getFieldParams();
         $active_piped_fields = $this->getPipedFields($project_id, $instrument, $record, $event_id, $instance);
 
@@ -308,8 +318,8 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         // Merge in piped fields
         $source_fields = array_merge($fields);
         foreach ($piped_fields as $field => $source) {
-            if (!isset($source_fields[$source->field])) {
-                $source_fields[$source->field] = @$active_field_params[$field];
+            if (!isset($source_fields[$source["field"]])) {
+                $source_fields[$source["field"]] = @$active_field_params[$field];
             }
         }
         // Anything to do?
@@ -330,25 +340,25 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             );
         }
         foreach ($piped_fields as $field => $source) {
+            $source_event = $source["event"] === null ? $event_id : $source["event"];
             $query_fields[$field] = array (
-                "field" => $source->field, 
-                "event_id" => is_numeric($source->event) ? $source->event : Event::getEventIdByName($project_id, $source->event),
-                "instance" => $source->instance * 1 ?: 1
+                "field" => $source["field"], 
+                "event_id" => is_numeric($source_event) ? $source_event * 1 : Event::getEventIdByName($project_id, $source_event),
+                "instance" => $source["instance"] * 1 ?: 1
             );
         }
         // Get field data - how to get this depends on the data structure of the project (repeating forms/events)
         $field_data = array();
-        $pds = $this->getProjectDataStructure($project_id);
         foreach ($query_fields as $field => $source) {
             $sourceField = $source["field"];
-            $sourceForm = $pds["fields"][$sourceField]["form"];
+            $sourceForm = $project->getFormByField($sourceField);
             $sourceEventId = $source["event_id"];
             $sourceInstance = $source["instance"];
             $data = REDCap::getData('array',$record, $sourceField);
-            if ($pds["fields"][$sourceField]["repeating_form"]) {
+            if ($project->isFieldOnRepeatingForm($sourceField, $sourceEventId)) {
                 $result = $data[$record]["repeat_instances"][$sourceEventId][$sourceForm][$sourceInstance];
             }
-            else if ($pds["fields"][$sourceField]["repeating_event"]) {
+            else if ($project->isEventRepeating($sourceEventId)) {
                 $result = $data[$record]["repeat_instances"][$sourceEventId][null][$sourceInstance];
             }
             else {
@@ -366,22 +376,24 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             else {
                 // invalid field type!
             }
+            $field_data[$field] = array (
+                'container_id' => "ivem-$field-$event_id-$instance",
+                'params'       => $source_fields[$source["field"]],
+                'page'         => $instrument,
+                'field_name'   => $sourceField,
+                'record'       => $record,
+                'event_id'     => $sourceEventId,
+                'instance'     => $sourceInstance,
+                'survey_hash'  => $survey_hash,
+                'pipe_source'  => "$sourceField-$sourceEventId-$sourceInstance",
+            );
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
-                $field_data[$field] = array(
-                    'suffix'      => pathinfo($doc_name, PATHINFO_EXTENSION),
-                    'params'      => $source_fields[$source["field"]],
-                    'mime_type'   => $mime_type,
-                    'doc_name'    => $doc_name,
-                    'doc_id'      => $doc_id,
-                    'hash'        => Files::docIdHash($doc_id),
-                    'page'        => $instrument,
-                    'field_name'  => $sourceField,
-                    'record'      => $record,
-                    'event_id'    => $sourceEventId,
-                    'instance'    => $sourceInstance,
-                    'survey_hash' => $survey_hash, 
-                );
+                $field_data[$field]["suffix"] = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
+                $field_data[$field]["mime_type"] = $mime_type;
+                $field_data[$field]["doc_name"] = $doc_name;
+                $field_data[$field]["doc_id"] = $doc_id;
+                $field_data[$field]["hash"] = Files::docIdHash($doc_id);
             }
         }
 
@@ -390,7 +402,9 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             $preview_fields[$field] = $field_data[$field];
             $preview_fields[$field]["piped"] = false;
         }
+        $pipe_sources = array();
         foreach ($piped_fields as $into => $from) {
+            $pipe_sources[$from["field"]] = true;
             $preview_fields[$into] = $field_data[$into];
             $preview_fields[$into]["piped"] = true;
             $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : @$active_field_params[$from];
@@ -403,6 +417,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             <script>
                 // Load the fields and parameters and start it up
                 IVEM.preview_fields = <?php print json_encode($preview_fields) ?>;
+                IVEM.pipe_sources = <?php print json_encode($pipe_sources) ?>;
                 IVEM.init();
             </script>
         <?php
@@ -410,285 +425,4 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
 
     #endregion --------------------------------------------------------------------------------------------------------------
 
-
-    #region Project Data Structure Helper -----------------------------------------------------------------------------------
-
-    /**
-     * Gets the repeating forms and events in the current or specified project.
-     * 
-     * The returned array is structured like so:
-     * [
-     *   "forms" => [
-     *      event_id => [
-     *         "form name", "form name", ...
-     *      ],
-     *      ...
-     *   ],
-     *   "events" => [
-     *      event_id => [
-     *        "form name", "form name", ...
-     *      ],
-     *      ...
-     *   ] 
-     * ]
-     * 
-     * @param int|string|null $pid The project id (optional).
-     * @return array An associative array listing the repeating forms and events.
-     * @throws Exception From requireProjectId if no project id can be found.
-     */
-    function getRepeatingFormsEvents($pid = null) {
-        $pid = $this->requireProjectId($pid);
-        
-        $result = $this->query('
-            select event_id, form_name 
-            from redcap_events_repeat 
-            where event_id in (
-                select m.event_id 
-                from redcap_events_arms a
-                join redcap_events_metadata m
-                on a.arm_id = m.arm_id and a.project_id = ?
-            )', $pid);
-
-        $forms = array(
-            "forms" => array(),
-            "events" => array()
-        );
-        while ($row = $result->fetch_assoc()) {
-            $event_id = $row["event_id"];
-            $form_name = $row["form_name"];
-            if ($form_name === null) {
-                // Entire repeating event. Add all forms in it.
-                $forms["events"][$event_id] = $this->getEventForms($event_id);
-            }
-            else {
-                $forms["forms"][$event_id][] = $form_name;
-            }
-        }
-        return $forms;
-    }
-
-    /**
-     * Gets the names of the forms in the current or specified event.
-     * 
-     * @param int|null $event_id The event id (optional)
-     * @return array An array of form names.
-     * @throws Exception From requireProjectId or ExternalModules::getEventId if event_id, project_id cannot be deduced or multiple event ids are in a project.
-     */
-    function getEventForms($event_id = null) {
-        if($event_id === null){
-            $event_id = $this->getEventId();
-        }
-        $forms = array();
-        $result = $this->query('
-            select form_name
-            from redcap_events_forms
-            where event_id = ?
-        ', $event_id);
-        while ($row = $result->fetch_assoc()) {
-            $forms[] = $row["form_name"];
-        }
-        return $forms;
-    }
-
-
-    /**
-     * Gets the project structure (arms, events, forms, fields) of the current or specified project.
-     * 
-     * The returned array is structured like so:
-     * [
-     *   "forms" => [
-     *      "form name" => [
-     *          "name" => "form name",
-     *          "repeating" => true|false,
-     *          "repeating_event" => true|false,
-     *          "arms" => [
-     *              arm_id => [ 
-     *                  "id" => arm_id 
-     *              ], ...
-     *          ],
-     *          "events" => [
-     *              event_id => [
-     *                  "id" => event_id,
-     *                  "name" => "event name",
-     *                  "repeating" => true|false
-     *              ], ...
-     *          ],
-     *          "fields" => [
-     *              "field name", "field name", ...
-     *          ]
-     *      ], ...
-     *   ],
-     *   "events" => [
-     *      event_id => [
-     *          "id" => event_id,
-     *          "name" => "event name",
-     *          "repeating" => true|false,
-     *          "arm" => arm_id,
-     *          "forms" => [
-     *              "form_name" => [
-     *                  "name" => "form_name",
-     *                  "repeating" => true|false
-     *              ], ...
-     *          ]
-     *      ], ...
-     *   ],
-     *   "arms" => [
-     *      arm_id => [
-     *          "id" => arm_id
-     *          "events" => [
-     *              event_id => [
-     *                  "id" => event_id,
-     *                  "name" => "event name"
-     *              ], ...
-     *          ],
-     *          "forms" => [
-     *              "form name" => [
-     *                  "name" => "form name"
-     *              ], ...
-     *          ]
-     *      ], ...
-     *   ],
-     *   "fields" => [
-     *      "field name" => [
-     *          "name" => "field name",
-     *          "form" => "form name",
-     *          "repeating_form" => true|false,
-     *          "repeating_event" => true|false,
-     *          "events" => [
-     *              event_id => [ 
-     *                  (same as "events" => event_id -- see above)
-     *              ], ...
-     *          ],
-     *          "metadata" => [
-     *              (same as in $Proj)
-     *          ]
-     *      ], ...
-     *   ]
-     * ] 
-     * @param int|string|null $pid The project id (optional).
-     * @return array An array containing information about the project's data structure.
-     */
-    function getProjectDataStructure($pid = null) {
-        $pid = $this->requireProjectId($pid);
-
-        // Check cache.
-        if (array_key_exists($pid, self::$ProjectDataStructureCache)) return self::$ProjectDataStructureCache[$pid];
-
-        // Use REDCap's Project class to get some of the data. Specifically, unique event names are not in the backend database.
-        $proj = new \Project($pid);
-        $proj->getUniqueEventNames();
-
-        // Prepare return data structure.
-        $ps = array(
-            "pid" => $pid,
-            "forms" => array(),
-            "events" => array(),
-            "arms" => array(),
-            "fields" => array(),
-        );
-
-        // Gather data - arms, events, forms.
-        // Some of this might be extractable from $proj, but this is just easier.
-        $result = $this->query('
-            select a.arm_id, m.event_id, f.form_name
-            from redcap_events_arms a
-            join redcap_events_metadata m
-            on a.arm_id = m.arm_id and a.project_id = ?
-            join redcap_events_forms f
-            on f.event_id = m.event_id
-        ', $pid);
-        while ($row = $result->fetch_assoc()) {
-            $ps["arms"][$row["arm_id"]]["id"] = $row["arm_id"];
-            $ps["arms"][$row["arm_id"]]["events"][$row["event_id"]] = array(
-                "id" => $row["event_id"],
-                "name" => $proj->uniqueEventNames[$row["event_id"]]
-            );
-            $ps["arms"][$row["arm_id"]]["forms"][$row["form_name"]] = array(
-                "name" => $row["form_name"]
-            );
-            $ps["events"][$row["event_id"]]["id"] = $row["event_id"];
-            $ps["events"][$row["event_id"]]["name"] = $proj->uniqueEventNames[$row["event_id"]];
-            $ps["events"][$row["event_id"]]["repeating"] = false;
-            $ps["events"][$row["event_id"]]["arm"] = $row["arm_id"];
-            $ps["events"][$row["event_id"]]["forms"][$row["form_name"]] = array(
-                "name" => $row["form_name"],
-                "repeating" => false
-            );
-            $ps["forms"][$row["form_name"]]["name"] = $row["form_name"];
-            $ps["forms"][$row["form_name"]]["repeating"] = false;
-            $ps["forms"][$row["form_name"]]["repeating_event"] = false;
-            $ps["forms"][$row["form_name"]]["arms"][$row["arm_id"]] = array(
-                "id" => $row["arm_id"]
-            );
-            $ps["forms"][$row["form_name"]]["events"][$row["event_id"]] = array(
-                "id" => $row["event_id"],
-                "name" => $proj->uniqueEventNames[$row["event_id"]],
-                "repeating" => false
-            );
-        }
-        // Gather data - fields. Again, this could be got from $proj, but this is more straightforward to process.
-        $result = $this->query('
-            select field_name, form_name
-            from redcap_metadata
-            where project_id = ?
-            order by field_order asc
-        ', $pid);
-        while ($row = $result->fetch_assoc()) {
-            $ps["fields"][$row["field_name"]] = array(
-                "name" => $row["field_name"],
-                "form" => $row["form_name"],
-                "repeating_form" => false,
-                "repeating_event" => false,
-            );
-            $ps["forms"][$row["form_name"]]["fields"][] = $row["field_name"];
-        }
-        // Gather data - repeating forms, events.
-        $repeating = $this->getRepeatingFormsEvents($pid);
-        foreach ($repeating["forms"] as $eventId => $forms) {
-            foreach ($forms as $form) {
-                $ps["events"][$eventId]["forms"][$form]["repeating"]= true;
-                $ps["forms"][$form]["repeating"] = true;
-                // Augment fields.
-                foreach ($ps["fields"] as $field => &$field_info) {
-                    if ($field_info["form"] == $form) {
-                        $field_info["repeating_form"] = true;
-                    }
-                }
-            }
-        }
-        foreach ($repeating["events"] as $eventId => $forms) {
-            $ps["events"][$eventId]["repeating"] = true;
-            foreach ($forms as $form) {
-                $ps["forms"][$form]["repeating_event"] = true;
-                $ps["forms"][$form]["events"][$eventId]["repeating"] = true;
-                // Augment fields.
-                foreach ($ps["fields"] as $field => &$field_info) {
-                    if ($field_info["form"] == $form) {
-                        $field_info["repeating_event"] = true;
-                    }
-                }
-            }
-        }
-        // Augment fields with events.
-        foreach ($ps["forms"] as $formName => $formInfo) {
-            foreach ($formInfo["fields"] as $field) {
-                foreach ($formInfo["events"] as $eventId => $_) {
-                    $ps["fields"][$field]["events"][$eventId] = $ps["events"][$eventId];
-                }
-            }
-        }
-        // Augment fields with field metadata.
-        foreach ($ps["fields"] as $field => &$field_data) {
-            $field_data["metadata"] = $proj->metadata[$field];
-        }
-
-        // Add to cache.
-        self::$ProjectDataStructureCache[$pid] = $ps;
-
-        return $ps;
-    }
-
-    private static $ProjectDataStructureCache = array();
-
-    #endregion --------------------------------------------------------------------------------------------------------------
 }
