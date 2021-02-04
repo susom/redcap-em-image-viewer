@@ -12,5 +12,7 @@
 			"name": "REDCap"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"breadcrumbs.icons": true
+	}
 }
