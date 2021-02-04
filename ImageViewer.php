@@ -2,6 +2,7 @@
 
 if (!class_exists("Util")) include_once("classes/Util.php");
 
+use DE\RUB\ImageViewerExternalModule\Project;
 use \REDCap as REDCap;
 use \Files as Files;
 use \Piping as Piping;
@@ -232,14 +233,17 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             foreach ($action_tag_results[$this->imagePipeTag] as $field => $param_array) {
                 $params = $param_array["params"];
                 // Need to create correct context for the piping of special tags (instance, event smart variables)
-                $raw_params = json_decode($params);
+                $raw_params = json_decode($params, true);
                 if (is_string($raw_params)) {
-                    $raw_params = json_decode("{\"field\":\"$raw_params\",\"event\":\"[event-name]\",\"instance\":\"[current-instance]\"}");
+                    $raw_params = json_decode("{\"field\":\"$raw_params\",\"event\":\"[event-name]\",\"instance\":\"[current-instance]\"}", true);
                 }
-                $field_instrument = $pds["fields"][$raw_params->field]["form"];
-                $raw_params->event = Piping::pipeSpecialTags($raw_params->event, $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
-                $ctx_event_id = is_numeric($raw_params->event) ? $raw_params->event : Event::getEventIdByName($project_id, $raw_params->event);
-                $raw_params->instance = Piping::pipeSpecialTags($raw_params->instance, $project_id, $record, $ctx_event_id, null, null, false, null, $field_instrument, false, false);
+                if (!isset($raw_params["event"])) $raw_params["event"] = "[event-name]";
+                if (!isset($raw_params["instance"])) $raw_params["instance"] = "[current-instance]";
+                $field_instrument = $project->getFormByField($raw_params["field"]);
+                $raw_params["event"] = Piping::pipeSpecialTags($raw_params["event"] ?: "[event-name]", $project_id, $record, $event_id, $instance, null, false, null, $field_instrument, false, false);
+                $ctx_event_id = is_numeric($raw_params["event"]) ? $raw_params["event"] * 1 : Event::getEventIdByName($project_id, $raw_params["event"]);
+                $ctx_instance = $ctx_event_id == $event_id ? $instance : 1;
+                $raw_params["instance"] = Piping::pipeSpecialTags($raw_params["instance"] ?: "[current-instance]", $project_id, $record, $ctx_event_id, $ctx_instance, null, false, null, $field_instrument, false, false);
                 $field_params[$field] = $raw_params;
             }
         }
@@ -314,8 +318,8 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         // Merge in piped fields
         $source_fields = array_merge($fields);
         foreach ($piped_fields as $field => $source) {
-            if (!isset($source_fields[$source->field])) {
-                $source_fields[$source->field] = @$active_field_params[$field];
+            if (!isset($source_fields[$source["field"]])) {
+                $source_fields[$source["field"]] = @$active_field_params[$field];
             }
         }
         // Anything to do?
@@ -336,25 +340,25 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             );
         }
         foreach ($piped_fields as $field => $source) {
+            $source_event = $source["event"] === null ? $event_id : $source["event"];
             $query_fields[$field] = array (
-                "field" => $source->field, 
-                "event_id" => is_numeric($source->event) ? $source->event : Event::getEventIdByName($project_id, $source->event),
-                "instance" => $source->instance * 1 ?: 1
+                "field" => $source["field"], 
+                "event_id" => is_numeric($source_event) ? $source_event * 1 : Event::getEventIdByName($project_id, $source_event),
+                "instance" => $source["instance"] * 1 ?: 1
             );
         }
         // Get field data - how to get this depends on the data structure of the project (repeating forms/events)
         $field_data = array();
-        $pds = $this->getProjectDataStructure($project_id);
         foreach ($query_fields as $field => $source) {
             $sourceField = $source["field"];
-            $sourceForm = $pds["fields"][$sourceField]["form"];
+            $sourceForm = $project->getFormByField($sourceField);
             $sourceEventId = $source["event_id"];
             $sourceInstance = $source["instance"];
             $data = REDCap::getData('array',$record, $sourceField);
-            if ($pds["fields"][$sourceField]["repeating_form"]) {
+            if ($project->isFieldOnRepeatingForm($sourceField, $sourceEventId)) {
                 $result = $data[$record]["repeat_instances"][$sourceEventId][$sourceForm][$sourceInstance];
             }
-            else if ($pds["fields"][$sourceField]["repeating_event"]) {
+            else if ($project->isEventRepeating($sourceEventId)) {
                 $result = $data[$record]["repeat_instances"][$sourceEventId][null][$sourceInstance];
             }
             else {
