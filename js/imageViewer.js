@@ -55,7 +55,7 @@ IVEM.highlightFields = function() {
  * Set up module on survey / data entry pages
  */
 IVEM.init = function() {
-    $(document).ready(function() {
+    $(function() {
 
         // Hijack the proxy function for preview of images immediately after uploads
         IVEM.setupProxy();
@@ -181,7 +181,7 @@ IVEM.getExtension = function (path) {
  * Add a notification to the Project Setup page
  */
 IVEM.projectSetup = function () {
-    $(document).ready(function () {
+    $(function () {
         var first_box = $('#setupChklist-modify_project');
         if (first_box.length) {
             var element = $('#em_summary_box');
