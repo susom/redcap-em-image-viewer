@@ -5,16 +5,7 @@
 
   "description": "Preview uploaded images or pdfs files on a form/survey",
 
-  "versions": [
-    { "0.2": "Working and simplified version that is almost exclusively javascript" },
-    { "1.0": "Initial release" },
-    { "1.1": "Added support for custom action-tag @IMAGEVIEW"},
-    { "1.2": "Bug fix in field specifications"},
-    { "1.3": "Added support for PDF files as well in addition to improving the preview of newly uploaded files"},
-    { "1.3.1": "Made a minor fix in the ActionTag class that was calling an external class not included in the module"},
-    { "1.3.2": "Supports embedding PDFs from descriptive fields as well"},
-    { "1.4.0": "Added support for image/PDF piping with the @IMAGEPIPE action-tag. Images are not part of the hyperlink any more."}
-  ],
+  "framework-version": 3,
 
   "authors": [
     {
