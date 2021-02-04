@@ -62,7 +62,7 @@ IVEM.init = function() {
 
         // Process each field on the page that already contains data when the page is loaded
         $.each(IVEM.preview_fields, function(field, params) {
-            IVEM.insertPreview(field, params.params, params.suffix);
+            IVEM.insertPreview(field, params);
         });
     });
 };
@@ -73,7 +73,7 @@ IVEM.init = function() {
  * It relies on there being IVEM.field_params and IVEM.file_details
  * @param field
  */
-IVEM.insertPreview = function(field, params, suffix, preview_hash) {
+IVEM.insertPreview = function(field, params) {
 
     var data = IVEM.preview_fields[field]
     // Get parent tr for table
@@ -110,55 +110,74 @@ IVEM.insertPreview = function(field, params, suffix, preview_hash) {
 
     // Determine the width of the parent/child TD
     var td_width = a.length ? a.closest('td').width() : td_label.width();
-    IVEM.log('Processing', field, params);
+    IVEM.log('Processing', field, params.params);
 
     // A preview hash indicates that the file was just uploaded and must be previewed using the every_page_before_render hook
     // We will add the ivem_preview tag to the query string to distinguish this request
-    if (preview_hash) {
+    if (params.hash) {
         src += '&ivem_preview=' + IVEM.payload;
     }
-    // Handle valid images
-    if (IVEM.valid_image_suffixes.indexOf(suffix) !== -1)
-    {
-        // Create a new image element and shrink to fit wd_width.
-        var img = $('<img/>')
-            .addClass('IVEM')
-            .attr('src', src)
-            .css('max-width', td_width + 'px')
-            .css('margin-left', 'auto')
-            .css('margin-right', 'auto')
-            .css('display', 'block');
 
-        // Append custom CSS if specified for the field
-        $.each(params, function(k,v) {
-            img.css(k,v);
-        });
-        // Add image
-        if (a.length) {
-            a.before(img);
-        }
-        else {
-            td_label.append(img)
+
+    // Create and insert a container
+    // Check if it is already there, create otherwise
+    var $container
+    if (params.hasOwnProperty('container_id')) {
+        $container = $('div[data-ivem-container=' + params.container_id + ']')
+        if ($container.length == 0) {
+            $container = $('<div></div>')
+                .attr('data-ivem-container', params.container_id)
+            if (params.piped) {
+                $container.attr('data-ivem-pipe-source', params.pipe_source)
+            }
+            if (a.length) {
+                a.before($container)
+            }
+            else {
+                td_label.append($container)
+            }
         }
     }
-    // Handle Valid PDF Files - https://github.com/pipwerks/PDFObject
-    else if (IVEM.valid_pdf_suffixes.indexOf(suffix) !== -1)
-    {
-        src = src + '&stream=1';
-        IVEM.log('Creating PDF with ' + src);
-        var pdf = $('<div/>').attr('id', field + '_pdfobject');
-        if (a.length) {
-            a.before(pdf);
-        }
-        else {
-            td_label.append(pdf);
-        }
-        // Set default pdf options and load any custom options from the params
-        var options = { fallbackLink: 'This browser does not support inline PDFs' };
-        $.extend(options, params);
-        // Create object
-        IVEM[field + '_pdf'] = PDFObject.embed(src, pdf, options);
+    else if (params.piped) {
+        // Piping - get target containers
+        $container = $('div[data-ivem-pipe-source=' + params.pipe_source + ']')
     }
+    $container.each(function() {
+        $this_cont = $(this)
+        // Handle valid images
+        if (IVEM.valid_image_suffixes.indexOf(params.suffix) !== -1)
+        {
+            // Create a new image element and shrink to fit wd_width.
+            var $img = $('<img/>')
+                .addClass('IVEM')
+                .attr('src', src)
+                .css('max-width', td_width + 'px')
+                .css('margin-left', 'auto')
+                .css('margin-right', 'auto')
+                .css('display', 'block');
+    
+            // Append custom CSS if specified for the field
+            $.each(params.params, function(k,v) {
+                $img.css(k,v);
+            });
+            // Empty container and add image
+            $this_cont.empty().append($img);
+        }
+        // Handle Valid PDF Files - https://github.com/pipwerks/PDFObject
+        else if (IVEM.valid_pdf_suffixes.indexOf(params.suffix) !== -1)
+        {
+            src = src + '&stream=1';
+            IVEM.log('Creating PDF with ' + src);
+            var $pdf = $('<div/>').attr('id', field + '_pdfobject');
+            // Empty container and add pdf
+            $this_cont.empty().append($pdf)
+            // Set default pdf options and load any custom options from the field params
+            var options = { fallbackLink: 'This browser does not support inline PDFs' };
+            $.extend(options, params.params);
+            // Create object
+            IVEM[field + '_pdf'] = PDFObject.embed(src, $pdf, options);
+        }
+    })
 };
 
 /**
@@ -210,37 +229,68 @@ IVEM.projectSetup = function () {
 IVEM.setupProxy = function() {
 
     // Allows us to validate the modal dialog after it opens (could be done differently)
-    (function () {
-        var proxied = stopUpload;
-        stopUpload = function () {
-            // First do the standard stopUpload
-            $result = proxied.apply(this, arguments);
+    var proxied_stopUpload = stopUpload
+    // function stopUpload(success,this_field,doc_id,doc_name,study_id,doc_size,event_id,download_page,delete_page,doc_id_hash,instance)
+    stopUpload = function () {
+        // First do the standard stopUpload
+        $result = proxied_stopUpload.apply(this, arguments)
 
-            // After a successful upload, the download url is attached to the page - let's use it to download a preview image
-            IVEM.log('Upload', arguments);
-            var success = arguments[0];
-            var field = arguments[1];
-            var doc_name = arguments[3];
-            var suffix =  IVEM.getExtension(doc_name).toLowerCase();
+        // After a successful upload, the download url is attached to the page - let's use it to download a preview image
+        IVEM.log('Upload', arguments)
+        var success = arguments[0]
+        var field = arguments[1]
+        var doc_name = arguments[3]
+        var event_id = arguments[6]
+        var instance = arguments[10]
+        var suffix =  IVEM.getExtension(doc_name).toLowerCase()
 
-            // This is file part of an active field
-            if (success && IVEM.field_params.hasOwnProperty(field)) {
-                IVEM.log('Upload to ' + field + ' with ' + doc_name + ' and ' + suffix);
-                var params = IVEM.field_params[field];
-                var hash = arguments[9];
-                IVEM.insertPreview(field, params, suffix, hash);
-            }
-            // Add optional updateTrigger than can be called on completion of the upload
-            if (IVEM.uploadComplete) {
-                for (let i=0; i<IVEM.uploadComplete.length; i++){
-                    let t = IVEM.uploadComplete[i];
-                    if (typeof(t) === 'function') {
-                        IVEM.log('Calling function');
-                        t();
-                    }
+        // This is file part of an active field
+        if (success && IVEM.field_params.hasOwnProperty(field)) {
+            IVEM.log('Upload to ' + field + ' with ' + doc_name + ', rendering preview')
+            var params = {}
+            params.params = IVEM.field_params[field]
+            params.hash = arguments[9]
+            params.piped = false
+            params.suffix = suffix
+            params.pipe_source = field + '-' + event_id + '-' + instance
+            params.container_id = IVEM.preview_fields[field].container_id
+            IVEM.insertPreview(field, params)
+        }
+        // This is file part that is piped
+        if (success && IVEM.pipe_sources.hasOwnProperty(field)) {
+            IVEM.log('Upload to ' + field + ' with ' + doc_name + ', rendering live pipe')
+            var params = {}
+            params.params = IVEM.field_params[field]
+            params.hash = arguments[9]
+            params.piped = true
+            params.suffix = suffix
+            params.pipe_source = field + '-' + event_id + '-' + instance
+            IVEM.insertPreview(field, params)
+        }
+        // Add optional updateTrigger than can be called on completion of the upload
+        if (IVEM.uploadComplete) {
+            for (var i = 0; i < IVEM.uploadComplete.length; i++) {
+                var t = IVEM.uploadComplete[i]
+                if (typeof(t) === 'function') {
+                    IVEM.log('Calling function')
+                    t()
                 }
             }
-            return $result;
-        };
-    })();
+        }
+        return $result
+    }
+    var proxied_deleteDocument = deleteDocument
+    // function deleteDocument(doc_id,this_field,id,event_id,instance,delete_page,version,version_hash)
+    deleteDocument = function() {
+        // First do the standard deleteDocument
+        $result = proxied_deleteDocument.apply(this, arguments)
+        // Clear containers
+        var field = arguments[1]
+        var event_id = arguments[3]
+        var instance = arguments[4]
+        var pipe_source = field + '-' + event_id + '-' + instance
+        $('div[data-ivem-container=ivem-' + pipe_source + ']').empty()
+        $('div[data-ivem-pipe-source=' + pipe_source + ']').empty()
+        IVEM.log('Deleted ' + pipe_source)
+    }
 };
