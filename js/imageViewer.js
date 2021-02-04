@@ -139,7 +139,7 @@ IVEM.insertPreview = function(field, params) {
     $container.each(function() {
         $this_cont = $(this)
         // Handle valid images
-        if (IVEM.valid_image_suffixes.indexOf(params.suffix) !== -1)
+        if (IVEM.valid_image_suffixes.indexOf(params.suffix.toLowerCase()) !== -1)
         {
             // Create a new image element and shrink to fit wd_width.
             var $img = $('<img/>')
@@ -158,7 +158,7 @@ IVEM.insertPreview = function(field, params) {
             $this_cont.empty().append($img);
         }
         // Handle Valid PDF Files - https://github.com/pipwerks/PDFObject
-        else if (IVEM.valid_pdf_suffixes.indexOf(params.suffix) !== -1)
+        else if (IVEM.valid_pdf_suffixes.indexOf(params.suffix.toLowerCase()) !== -1)
         {
             src = src + '&stream=1';
             IVEM.log('Creating PDF with ' + src);
