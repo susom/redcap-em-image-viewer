@@ -20,12 +20,7 @@ IVEM.log = function() {
                 console.log(arguments[0], arguments[1], arguments[2], arguments[3]); 
                 return;
             default:
-                try {
-                    console.log(...arguments);
-                }
-                catch {
-                    console.log(arguments);
-                }
+                console.log(arguments);
         }
     }
 }
