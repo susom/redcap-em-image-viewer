@@ -389,7 +389,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             );
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
-                $field_data[$field]["suffix"] = pathinfo($doc_name, PATHINFO_EXTENSION);
+                $field_data[$field]["suffix"] = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
                 $field_data[$field]["mime_type"] = $mime_type;
                 $field_data[$field]["doc_name"] = $doc_name;
                 $field_data[$field]["doc_id"] = $doc_id;
