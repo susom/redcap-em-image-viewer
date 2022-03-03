@@ -55,6 +55,7 @@ Consider the record structure in this example: Images are uploaded in both event
 
 Version | Description
 ------- | -------------------
+1.4.5   | Updated framework to version 8 and updated library for pdfobject
 1.4.4   | Minor bug fix on util logging class
 1.4.3   | Added support for lowercase and fixed piping bugs (PR#6)
 1.4.2   | Added REDCap minimal version requirement (9.7.8)
