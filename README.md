@@ -27,7 +27,7 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
   - For left-vertical alignment this means the full width of the cell.
 - To pipe an uploaded image or PDF into another field's label, use the `@IMAGEPIPE` action tag.
   - The parameter for this action-tag must be valid JSON, specifying the name of the source file upload or descriptive field alone, or together with event and/or instance:
-  `@IMAGEPIPE="file_upload_field"`  
+  `@IMAGEPIPE="file_upload_field"`
   `@IMAGEPIPE={"field":"file_upload_field","event":123,"instance":1}`
   - Events can be specified by name or number.
   - Instances must be specified by number.
@@ -46,7 +46,7 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
 
 ### Piping
 
-Consider the record structure in this example: Images are uploaded in both events. In the second event, the upload field is on a repeating form.  
+Consider the record structure in this example: Images are uploaded in both events. In the second event, the upload field is on a repeating form.
 `View` is set up to show the file from the first event (`upload`) and the _last instance_ of the file from the second event (`upload2`).
 
 ![Piping Example](docs/piping.png)
@@ -55,7 +55,8 @@ Consider the record structure in this example: Images are uploaded in both event
 
 Version | Description
 ------- | -------------------
-1.4.3   | Added support for lowercase and fixed piping bugs (PR#6) 
+1.4.4   | Minor bug fix on util logging class
+1.4.3   | Added support for lowercase and fixed piping bugs (PR#6)
 1.4.2   | Added REDCap minimal version requirement (9.7.8)
 1.4.1   | Bug fixes (repeating events)
 1.4.0   | Added support for image/PDF piping with the @IMAGEPIPE action-tag. Images are not part of the hyperlink any more.
