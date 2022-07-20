@@ -111,7 +111,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             if(!in_array($suffix, array_merge($this->valid_pdf_suffixes, $this->valid_image_suffixes,
                 $this->valid_dicom_suffixes))) {
                 // Invalid suffix - skip
-                Util::log("Invalid Suffix", $doc_name);
+                Util::log("Invalid Suffix", $doc_name, "ERROR");
             } else {
                 // Get size of contents
                 if (function_exists('mb_strlen')) {
@@ -207,7 +207,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         foreach ($field_params as $field => &$params) {
             $params = json_decode($params);
         }
-        Util::log(__FUNCTION__, $field_params);
+        Util::log(__FUNCTION__, $field_params, "DEBUG");
         return $field_params;
     }
 
@@ -249,7 +249,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
                 $field_params[$field] = $raw_params;
             }
         }
-        Util::log(__FUNCTION__, $field_params);
+        Util::log(__FUNCTION__, $field_params, "DEBUG");
         return $field_params;
     }
 
@@ -316,8 +316,8 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         $instrument_fields = REDCap::getFieldNames($instrument);
         $fields = array_intersect_key($active_field_params, array_flip($instrument_fields));
         $piped_fields = array_intersect_key($active_piped_fields, array_flip($instrument_fields));
-        Util::log("Fields on $instrument", $fields);
-        Util::log("Piped fields on $instrument", $piped_fields);
+        Util::log("Fields on $instrument", $fields, "DEBUG");
+        Util::log("Piped fields on $instrument", $piped_fields, "DEBUG");
 
         // Merge in piped fields
         $source_fields = array_merge($fields);
@@ -414,7 +414,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : @$active_field_params[$from];
         }
 
-        Util::log("Previewing existing files", $preview_fields);
+        Util::log("Previewing existing files", $preview_fields, "DEBUG");
 
         $this->renderJavascriptSetup($project_id);
         ?>
