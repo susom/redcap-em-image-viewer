@@ -53,23 +53,25 @@ class ActionTagHelper
             $field_annotation = $field['field_annotation'];
             $parsed_tags = self::parseActionTags($field_annotation);
             // Plugin::log($tags, "DEBUG", "TAGS for $field_name");
-            foreach ($parsed_tags as $tag) {
-                // All action-tags should be parsed as uppercase
-                $action_tag = strtoupper($tag['actiontag']);
+            if ($parsed_tags) {
+                foreach ($parsed_tags as $tag) {
+                    // All action-tags should be parsed as uppercase
+                    $action_tag = strtoupper($tag['actiontag']);
 
-                // If we are filtering, skip non-specified tags
-                if ($tags AND !in_array($action_tag, $tags)) continue;
+                    // If we are filtering, skip non-specified tags
+                    if ($tags and !in_array($action_tag, $tags)) continue;
 
-                // Initialize the action_tag node
-                if (!isset($action_tags[$action_tag])) $action_tags[$action_tag] = array();
+                    // Initialize the action_tag node
+                    if (!isset($action_tags[$action_tag])) $action_tags[$action_tag] = array();
 
-                // Merge action_tag into action_tags
-                $action_tags[$action_tag] = array_merge( $action_tags[$action_tag],
-                    array($field_name => array(
-                        'params' => isset($tag['params']) ? $tag['params'] : ""
-                    )
-                    )
-                );
+                    // Merge action_tag into action_tags
+                    $action_tags[$action_tag] = array_merge($action_tags[$action_tag],
+                        array($field_name => array(
+                            'params' => isset($tag['params']) ? $tag['params'] : ""
+                        )
+                        )
+                    );
+                }
             }
         }
 

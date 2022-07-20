@@ -15,57 +15,59 @@ class Util
 
         $args = func_get_args();
         $arg_count = count($args);
-        $last_arg = strtoupper($args[$arg_count-1]);
-
-        if(in_array($last_arg, array('INFO','DEBUG','ERROR'))) {
-            $type = $last_arg;
-            array_pop($args);
-        } else {
-            $type = "INFO";
+        $last_arg = 'NONE';
+        if ($arg_count > 0) {
+            $last_arg = strtoupper($args[$arg_count-1]);
         }
+         if (in_array($last_arg, array('INFO', 'DEBUG', 'ERROR'))) {
+                $type = $last_arg;
+                array_pop($args);
+         } else {
+                $type = "INFO";
+            }
 
-        // ADD TRACE FOR DEBUG
-        if ($type == "DEBUG") {
-            $trace = self::generateCallTrace();
-            $trace = "\n\t\tTRACE:\n\t\t" . implode("\n\t\t", $trace);
-        } else {
-            $trace = "";
-        }
+            // ADD TRACE FOR DEBUG
+            if ($type == "DEBUG") {
+                $trace = self::generateCallTrace();
+                $trace = "\n\t\tTRACE:\n\t\t" . implode("\n\t\t", $trace);
+            } else {
+                $trace = "";
+            }
 
-        // DEBUG OTHER ARGUMENTS AS VARIABLES
-        $vars = array();
-        foreach ($args as $arg) {
-            $vars[] = self::generateVariableDebug($arg);
-        }
+            // DEBUG OTHER ARGUMENTS AS VARIABLES
+            $vars = array();
+            foreach ($args as $arg) {
+                $vars[] = self::generateVariableDebug($arg);
+            }
 
-        // ADD A DELIMITER BETWEEN EACH SESSION
-        if (self::$log_session_first == false) {
-            global $project_id, $record;
-            self::$log_session_first = true;
-            $header = "-------- " . date( 'Y-m-d H:i:s' ) . " --------";
-            if (!empty($project_id)) $header .= " [PID:" . $project_id . "]";
-            if (!empty($record)) $header .= " [RECORD:" . $record . "]";
-            $header .= "\n";
-        } else {
-            $header = "";
-        }
+            // ADD A DELIMITER BETWEEN EACH SESSION
+            if (self::$log_session_first == false) {
+                global $project_id, $record;
+                self::$log_session_first = true;
+                $header = "-------- " . date('Y-m-d H:i:s') . " --------";
+                if (!empty($project_id)) $header .= " [PID:" . $project_id . "]";
+                if (!empty($record)) $header .= " [RECORD:" . $record . "]";
+                $header .= "\n";
+            } else {
+                $header = "";
+            }
 
-        // Output to plugin log if defined, else use error_log
-        if (!empty($plugin_log_file)) {
-            $result = file_put_contents(
-                $plugin_log_file,
-                $header .
-                "[" . $type . "]\t" . implode("\n\t", $vars) .
-                $trace . "\n"
-                ,FILE_APPEND
-            );
+            // Output to plugin log if defined, else use error_log
+            if (!empty($plugin_log_file)) {
+                $result = file_put_contents(
+                    $plugin_log_file,
+                    $header .
+                    "[" . $type . "]\t" . implode("\n\t", $vars) .
+                    $trace . "\n"
+                    ,FILE_APPEND
+                );
 
-            if ($result === false) {
+                if ($result === false) {
                 // Output to error log since writing to the defined log file failed
                 error_log("Error writing to log file: $plugin_log_file");
                 error_log("\t" . implode("\n\t", $vars) . "\t" . implode("\n\t", $trace) );
+                }
             }
-        }
     }
 
     private static function generateCallTrace()

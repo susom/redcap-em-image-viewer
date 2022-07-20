@@ -10,6 +10,7 @@ A REDCap External Modules that provides a preview of images and PDFs in file upl
 - TIFF (.tif)
 - BMP (.bmp)
 - PDF (.pdf)
+- DICOM (.dcm)
 
 ## Directions
 
