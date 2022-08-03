@@ -16,6 +16,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     private $imagePipeTag = "@IMAGEPIPE";
     private $valid_image_suffixes = array('jpeg','jpg','jpe','gif','png','tif','bmp');
     private $valid_pdf_suffixes = array('pdf');
+    private $valid_dicom_suffixes = array('dcm');
 
     function __construct() {
         parent::__construct();
@@ -107,7 +108,8 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             // Get file attributes and contents
             list($mime_type, $doc_name, $contents) = Files::getEdocContentsAttributes($doc_id);
             $suffix = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
-            if(!in_array($suffix, array_merge($this->valid_pdf_suffixes, $this->valid_image_suffixes))) {
+            if(!in_array($suffix, array_merge($this->valid_pdf_suffixes, $this->valid_image_suffixes,
+                $this->valid_dicom_suffixes))) {
                 // Invalid suffix - skip
                 Util::log("Invalid Suffix", $doc_name, "ERROR");
             } else {
@@ -210,7 +212,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     * Returns an array containing piped fields (@IMAGEPIPE action-tag). This needs context in order to find the correct 
+     * Returns an array containing piped fields (@IMAGEPIPE action-tag). This needs context in order to find the correct
      * source field.
      * @param $project_id
      * @param $instrument
@@ -257,8 +259,8 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     function renderJavascriptSetup($project_id = null) {
         $field_params = $this->getFieldParams();
         // Make a list of all fields that may be downloaded
-        $allowed = array_values(array_map(function($e) { 
-            return $e->field; 
+        $allowed = array_values(array_map(function($e) {
+            return $e->field;
         }, $this->getPipedFields()));
         $allowed = array_unique(array_merge($allowed, array_keys($field_params)));
         $debug = $this->getProjectSetting("javascript-debug") == true;
@@ -266,7 +268,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         if ($project_id) {
             if (!class_exists("\DE\RUB\CryptoHelper")) include_once("classes/CryptoHelper.php");
             $crypto = \DE\RUB\CryptoHelper\Crypto::init();
-            $payload = $crypto->encrypt(array( 
+            $payload = $crypto->encrypt(array(
                 "pid" => $project_id * 1,
                 "allowed" => $allowed
             ));
@@ -277,10 +279,12 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         $payload = urlencode($payload);
         ?>
             <script src="<?php print $this->getUrl('js/pdfobject.min.js'); ?>"></script>
+            <script src="<?php print $this->getUrl('js/dwv.min.js'); ?>"></script>
             <script src="<?php print $this->getUrl('js/imageViewer.js'); ?>"></script>
             <script>
                 IVEM.valid_image_suffixes = <?php print json_encode($this->valid_image_suffixes) ?>;
                 IVEM.valid_pdf_suffixes = <?php print json_encode($this->valid_pdf_suffixes) ?>;
+                IVEM.valid_dicom_suffixes = <?php print json_encode($this->valid_dicom_suffixes) ?>;
                 IVEM.field_params = <?php print json_encode($field_params) ?>;
                 IVEM.payload = <?php print json_encode($payload) ?>;
                 IVEM.debug = <?php print json_encode($debug) ?>;
@@ -334,15 +338,15 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         $query_fields = array();
         foreach (array_keys($fields) as $field) {
             $query_fields[$field] = array(
-                "field" => $field, 
-                "event_id" => $event_id * 1, 
+                "field" => $field,
+                "event_id" => $event_id * 1,
                 "instance" => $instance * 1
             );
         }
         foreach ($piped_fields as $field => $source) {
             $source_event = $source["event"] === null ? $event_id : $source["event"];
             $query_fields[$field] = array (
-                "field" => $source["field"], 
+                "field" => $source["field"],
                 "event_id" => is_numeric($source_event) ? $source_event * 1 : Event::getEventIdByName($project_id, $source_event),
                 "instance" => $source["instance"] * 1 ?: 1
             );
@@ -369,10 +373,10 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             $field_type = $field_meta['element_type'];
             if ($field_type == 'descriptive' && !empty($field_meta['edoc_id'])) {
                 $doc_id = $field_meta['edoc_id'];
-            } 
+            }
             elseif ($field_type == 'file') {
                 $doc_id = $result[$sourceField];
-            } 
+            }
             else {
                 // invalid field type!
             }

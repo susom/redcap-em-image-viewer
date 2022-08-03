@@ -7,17 +7,17 @@ IVEM.uploadComplete = IVEM.uploadComplete || [];
 IVEM.log = function() {
     if (IVEM.debug) {
         switch(arguments.length) {
-            case 1: 
-                console.log(arguments[0]); 
+            case 1:
+                console.log(arguments[0]);
                 return;
-            case 2: 
-                console.log(arguments[0], arguments[1]); 
+            case 2:
+                console.log(arguments[0], arguments[1]);
                 return;
-            case 3: 
-                console.log(arguments[0], arguments[1], arguments[2]); 
+            case 3:
+                console.log(arguments[0], arguments[1], arguments[2]);
                 return;
             case 4:
-                console.log(arguments[0], arguments[1], arguments[2], arguments[3]); 
+                console.log(arguments[0], arguments[1], arguments[2], arguments[3]);
                 return;
             default:
                 console.log(arguments);
@@ -149,7 +149,7 @@ IVEM.insertPreview = function(field, params) {
                 .css('margin-left', 'auto')
                 .css('margin-right', 'auto')
                 .css('display', 'block');
-    
+
             // Append custom CSS if specified for the field
             $.each(params.params, function(k,v) {
                 $img.css(k,v);
@@ -171,7 +171,29 @@ IVEM.insertPreview = function(field, params) {
             // Create object
             IVEM[field + '_pdf'] = PDFObject.embed(src, $pdf, options);
         }
-    })
+        // Handle Dicom Files https://github.com/ivmartel/dwv
+        else if (IVEM.valid_dicom_suffixes.indexOf(params.suffix.toLowerCase()) !== -1)
+        {
+            // base function to get elements
+            dwv.gui.getElement = dwv.gui.base.getElement;
+            // create the dwv app
+            var app = new dwv.App();
+            // initialise with the id of the container div
+            $this_cont.attr('id','dwv-container')
+              .addClass('m-1')
+              .css('max-width', td_width + 'px')
+            var $layerContainer = $('<div/>').addClass('layerContainer');
+            $layerContainer.css('margin-left', 'auto')
+              .css('margin-right', 'auto')
+              .css('display', 'block');
+            $this_cont.empty().append($layerContainer);
+            app.init({
+                containerDivId: 'dwv-container'
+            });
+            // load dicom data
+            app.loadURLs([src + '&contentType=application%2Fdicom']);
+        }
+          })
 };
 
 /**
