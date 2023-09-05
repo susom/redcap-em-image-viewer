@@ -5,7 +5,7 @@
 
   "description": "Preview uploaded images or pdfs files on a form/survey",
 
-  "framework-version": 3,
+  "framework-version": 8,
 
   "authors": [
     {
@@ -14,7 +14,7 @@
       "institution": "Stanford University"
     },
     {
-      "name": "Günther Rezniczek", 
+      "name": "Günther Rezniczek",
       "email": "guenther.rezniczek@rub.de",
       "institution": "Ruhr-Universität Bochum"
     }
@@ -70,5 +70,11 @@
         }
       ]
     }
-  ]
+  ],
+  "compatibility": {
+      "php-version-min": "5.6.0",
+      "php-version-max": "",
+      "redcap-version-min": "11.1.1",
+      "redcap-version-max": ""
+   }
 }
