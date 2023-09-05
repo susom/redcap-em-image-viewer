@@ -393,11 +393,11 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
             );
             if ($doc_id > 0) {
                 list($mime_type, $doc_name) = Files::getEdocContentsAttributes($doc_id);
-                $field_data[$field]["suffix"] = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
-                $field_data[$field]["mime_type"] = $mime_type;
-                $field_data[$field]["doc_name"] = $doc_name;
-                $field_data[$field]["doc_id"] = $doc_id;
-                $field_data[$field]["hash"] = Files::docIdHash($doc_id);
+                $field_data[$field]["suffix"]    = htmlspecialchars(strtolower(pathinfo($doc_name, PATHINFO_EXTENSION)), ENT_QUOTES);
+                $field_data[$field]["mime_type"] = htmlspecialchars($mime_type, ENT_QUOTES);
+                $field_data[$field]["doc_name"]  = htmlspecialchars($doc_name, ENT_QUOTES);
+                $field_data[$field]["doc_id"]    = htmlspecialchars($doc_id, ENT_QUOTES);
+                $field_data[$field]["hash"]      = htmlspecialchars(Files::docIdHash($doc_id), ENT_QUOTES);
             }
         }
 
@@ -409,7 +409,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         $pipe_sources = array();
         foreach ($piped_fields as $into => $from) {
             $pipe_sources[$from["field"]] = true;
-            $preview_fields[$into] = $field_data[$into];
+            $preview_fields[$into] = htmlspecialchars($field_data[$into], ENT_QUOTES);
             $preview_fields[$into]["piped"] = true;
             $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : @$active_field_params[$from];
         }
