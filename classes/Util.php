@@ -15,14 +15,19 @@ class Util
 
         $args = func_get_args();
         $arg_count = count($args);
-        $last_arg = strtoupper($args[$arg_count-1]);
 
-        if(in_array($last_arg, array('INFO','DEBUG','ERROR'))) {
-            $type = $last_arg;
-            array_pop($args);
-        } else {
+        if($arg_count > 0 && is_string($args[$arg_count-1])) { // if last parameter is not passed or mislabled
+            $last_arg = strtoupper($args[$arg_count-1]);
+            if(in_array($last_arg, array('INFO','DEBUG','ERROR'))) {
+                $type = $last_arg;
+                array_pop($args);
+            } else {
+                $type = "INFO";
+            }
+        } else { // Proceed with INFO for log, don't pop
             $type = "INFO";
         }
+
 
         // ADD TRACE FOR DEBUG
         if ($type == "DEBUG") {
@@ -101,3 +106,4 @@ class Util
         return $msg;
     }
 }
+
