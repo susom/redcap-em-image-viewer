@@ -56,6 +56,8 @@ Consider the record structure in this example: Images are uploaded in both event
 
 Version | Description
 ------- | -------------------
+1.4.8   | PHP8-related bugfixes.
+1.4.7   | Internal updates.
 1.4.6   | Add support for multiple data tables.
 1.4.5   | Updated framework to version 8 and updated library for pdfobject
 1.4.4   | Minor bug fix on util logging class
