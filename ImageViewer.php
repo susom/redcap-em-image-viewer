@@ -17,30 +17,34 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     private $valid_image_suffixes = array('jpeg','jpg','jpe','gif','png','tif','bmp');
     private $valid_pdf_suffixes = array('pdf');
     private $valid_dicom_suffixes = array('dcm');
+    private $logger_initialized = false;
 
-    function __construct() {
-        parent::__construct();
-
+    private function initLogger() {
+        if (!$this->logger_initialized) return;
         // Add some context to $GLOBALS (used by Utli::log)
         $GLOBALS['external_module_prefix'] = $this->PREFIX;
         $GLOBALS['external_module_log_path'] = $this->getSystemSetting('log-path');
+        $this->logger_initialized = true;
     }
 
     #region Hooks -----------------------------------------------------------------------------------------------------------
 
     // Capture normal data-entry
     function hook_data_entry_form_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $repeat_instance = 1) {
+        $this->initLogger();
         $this->renderPreview($project_id, $instrument,$record, $event_id, $repeat_instance);
     }
 
     // Capture surveys
     function hook_survey_page_top($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1) {
+        $this->initLogger();
         $this->renderPreview($project_id, $instrument, $record, $event_id, $repeat_instance, $survey_hash);
     }
 
     // Designer and Project Setup cosmetics
     function hook_every_page_top($project_id = null)
     {
+        $this->initLogger();
         // When on the online designer, let's highlight the fields tagged for this EM
         if (PAGE == "Design/online_designer.php") {
             $this->renderJavascriptSetup();
@@ -61,6 +65,7 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
     // Renders the preview after a fresh upload
     function hook_every_page_before_render($project_id = null)
     {
+        $this->initLogger();
         $project_id = $project_id === null ? -1 : $project_id * 1;
         // Handle survey call-backs for the file after upload
         if ((PAGE == "surveys/index.php" || PAGE == "DataEntry/file_download.php") && isset($_GET["ivem_preview"])) {
