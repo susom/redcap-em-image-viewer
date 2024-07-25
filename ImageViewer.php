@@ -339,16 +339,16 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         foreach (array_keys($fields) as $field) {
             $query_fields[$field] = array(
                 "field" => $field,
-                "event_id" => $event_id * 1,
-                "instance" => $instance * 1
+                "event_id" => intval($event_id),
+                "instance" => intval($instance ?? "1")
             );
         }
         foreach ($piped_fields as $field => $source) {
             $source_event = $source["event"] === null ? $event_id : $source["event"];
             $query_fields[$field] = array (
                 "field" => $source["field"],
-                "event_id" => is_numeric($source_event) ? $source_event * 1 : Event::getEventIdByName($project_id, $source_event),
-                "instance" => $source["instance"] * 1 ?: 1
+                "event_id" => is_numeric($source_event) ? intval($source_event) : Event::getEventIdByName($project_id, $source_event),
+                "instance" => max(1, intval($source["instance"]))
             );
         }
         // Get field data - how to get this depends on the data structure of the project (repeating forms/events)
@@ -409,9 +409,9 @@ class ImageViewer extends \ExternalModules\AbstractExternalModule {
         $pipe_sources = array();
         foreach ($piped_fields as $into => $from) {
             $pipe_sources[$from["field"]] = true;
-            $preview_fields[$into] = htmlspecialchars($field_data[$into], ENT_QUOTES);
+            $preview_fields[$into] = $field_data[$into];
             $preview_fields[$into]["piped"] = true;
-            $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : @$active_field_params[$from];
+            $preview_fields[$into]["params"] = isset($active_field_params[$into]) ? $active_field_params[$into] : ($active_field_params[$from["field"]] ?? null);
         }
 
         Util::log("Previewing existing files", $preview_fields, "DEBUG");
